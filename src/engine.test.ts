@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextDay, pickVariant, stepLoad, targetFor, variantForWeek, weekNumber } from './engine.ts';
+import { pickVariant, stepLoad, targetFor, variantForWeek, weekNumber } from './engine.ts';
 import { LIB } from './seed/library.ts';
 import { DEFAULT_EQUIP, SLOT_BY_ID } from './seed/program.ts';
 import { SEED_SESSIONS } from './seed/week1.ts';
@@ -24,10 +24,6 @@ describe('rotation & weeks', () => {
     const slot = SLOT_BY_ID['L3'];
     expect(pickVariant(slot, 3, { ...eq, unavailable: ['lying leg curl'] }, getEx).variant).toBe('A');
     expect(pickVariant(slot, 3, eq, getEx).variant).toBe('C');
-  });
-  it('next day after week 1 is Upper A', () => {
-    expect(nextDay(sessions)).toBe('upperA');
-    expect(nextDay([])).toBe('upperA');
   });
 });
 

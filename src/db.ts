@@ -1,8 +1,8 @@
 import Dexie, { type Table } from 'dexie';
-import type { Exercise, ExerciseNote, Session, Settings, SlotOverride, WeekRemark } from './types.ts';
+import type { Exercise, ExerciseNote, RotationOverride, Session, Settings, WeekRemark } from './types.ts';
 import { LIB } from './seed/library.ts';
 import { DEFAULT_BLOCK_START, DEFAULT_EQUIP } from './seed/program.ts';
-import { SEED_LEGACY, SEED_NOTES, SEED_REMARKS, SEED_SESSIONS } from './seed/week1.ts';
+import { SEED_NOTES, SEED_REMARKS } from './seed/week1.ts';
 import type { HevyResult } from './csv.ts';
 
 export interface LegacyRow { id: string; name: string; type: 'compound' | 'isolation' }
@@ -11,7 +11,7 @@ class GymDB extends Dexie {
   sessions!: Table<Session, string>;
   weekRemarks!: Table<WeekRemark, number>;
   exerciseNotes!: Table<ExerciseNote, string>;
-  overrides!: Table<SlotOverride, string>;
+  rotation!: Table<RotationOverride, string>;
   kv!: Table<{ key: string; value: unknown }, string>;
   legacy!: Table<LegacyRow, string>;
   constructor() {
@@ -24,6 +24,7 @@ class GymDB extends Dexie {
       kv: 'key',
       legacy: 'id',
     });
+    this.version(2).stores({ overrides: null, rotation: 'id' });
   }
 }
 export const db = new GymDB();
@@ -62,14 +63,14 @@ export async function addImported(res: HevyResult): Promise<number> {
 export async function seedIfEmpty() {
   if (!(await db.kv.get('seeded'))) {
     await db.transaction('rw', db.tables, async () => {
-      await db.sessions.bulkPut(SEED_SESSIONS);
-      await db.legacy.bulkPut(SEED_LEGACY);
       await db.weekRemarks.bulkPut(SEED_REMARKS);
       await db.exerciseNotes.bulkPut(SEED_NOTES);
       await db.kv.put({ key: 'seeded', value: true });
     });
     for (const h of Object.values(hevySeed)) await addImported(h);
   }
+  // earlier versions pre-seeded week-1 sessions by hand; history now comes only from Hevy imports
+  await db.sessions.filter((s) => s.source === 'seed' || s.source === 'app').delete();
   setLegacy(await db.legacy.toArray());
 }
 

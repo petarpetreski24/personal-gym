@@ -1,40 +1,31 @@
 import { useEffect, useState } from 'react';
-import { DataProvider, useData } from './store.tsx';
+import { DataProvider } from './store.tsx';
 import { seedIfEmpty } from './db.ts';
-import Today from './screens/Today.tsx';
-import SessionScreen from './screens/SessionScreen.tsx';
-import History from './screens/History.tsx';
 import Program from './screens/Program.tsx';
+import History from './screens/History.tsx';
 import Exercises from './screens/Exercises.tsx';
-import Progress from './screens/Progress.tsx';
 import Settings from './screens/Settings.tsx';
 
-const TABS = ['Today', 'History', 'Program', 'Exercises', 'Progress'] as const;
+const TABS = ['Program', 'History', 'Exercises'] as const;
 type Tab = (typeof TABS)[number];
 
 function Shell() {
-  const { sessions } = useData();
-  const [tab, setTab] = useState<Tab>('Today');
-  const [overlay, setOverlay] = useState<'session' | 'settings' | null>(null);
-  const active = sessions.find((s) => !s.endedAt);
-
-  if (overlay === 'session' && active) return <main><SessionScreen key={active.id} initial={active} close={() => setOverlay(null)} /></main>;
+  const [tab, setTab] = useState<Tab>('Program');
+  const [settings, setSettings] = useState(false);
   return (
     <>
-      <header><b>Gym Tracker</b><button className="gear" aria-label="Settings" onClick={() => setOverlay('settings')}>⚙</button></header>
+      <header><b>Gym Tracker</b><button className="gear" aria-label="Settings" onClick={() => setSettings(true)}>⚙</button></header>
       <main>
-        {overlay === 'settings' ? <Settings back={() => setOverlay(null)} /> : (
+        {settings ? <Settings back={() => setSettings(false)} /> : (
           <>
-            {tab === 'Today' && <Today openSession={() => setOverlay('session')} />}
-            {tab === 'History' && <History />}
             {tab === 'Program' && <Program />}
+            {tab === 'History' && <History />}
             {tab === 'Exercises' && <Exercises />}
-            {tab === 'Progress' && <Progress />}
           </>
         )}
       </main>
       <nav>
-        {TABS.map((t) => <button key={t} className={t === tab && !overlay ? 'on' : ''} onClick={() => { setOverlay(null); setTab(t); }}>{t}</button>)}
+        {TABS.map((t) => <button key={t} className={t === tab && !settings ? 'on' : ''} onClick={() => { setSettings(false); setTab(t); }}>{t}</button>)}
       </nav>
     </>
   );

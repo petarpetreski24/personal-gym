@@ -1,4 +1,4 @@
-import type { DayId, Equip, Exercise, Muscle, Session, SessionExercise, SetLog, Slot, Target } from './types.ts';
+import type { Equip, Exercise, Muscle, Session, SessionExercise, SetLog, Slot, Target } from './types.ts';
 import { SLOTS } from './seed/program.ts';
 
 /* ---------- weeks & rotation ---------- */
@@ -31,15 +31,6 @@ export function pickVariant(slot: Slot, week: number, equip: Equip, getEx: (id: 
     if (!eq || !equip.unavailable.includes(eq)) return { variant: c, exerciseId: id };
   }
   return { variant: v, exerciseId: slot.variants![v] };
-}
-
-const MAIN: DayId[] = ['upperA', 'lower', 'upperB'];
-export function nextDay(sessions: Session[]): DayId {
-  const last = sessions
-    .filter((s) => s.endedAt && s.dayId && MAIN.includes(s.dayId))
-    .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
-    .pop();
-  return last ? MAIN[(MAIN.indexOf(last.dayId!) + 1) % MAIN.length] : 'upperA';
 }
 
 /* ---------- helpers ---------- */
@@ -283,23 +274,3 @@ export function weeklyVolume(sessions: Session[], week: number, getEx: (id: stri
 export const sessionMinutes = (s: Session) =>
   s.endedAt ? (new Date(s.endedAt).getTime() - new Date(s.startedAt).getTime()) / 60000 : 0;
 
-/* ---------- planned changes ---------- */
-/** Week 5+: offer a 4th set on Bench/Lat Pulldown if the last 2 weeks averaged ≤ 60 min. */
-export function week5Offer(sessions: Session[], week: number, overrides: { slotId: string }[]): boolean {
-  if (week < 5 || overrides.some((o) => o.slotId === 'A1')) return false;
-  const recent = finished(sessions).filter((s) => s.dayId && s.weekNumber >= week - 2 && s.weekNumber < week);
-  if (!recent.length) return false;
-  return recent.reduce((a, s) => a + sessionMinutes(s), 0) / recent.length <= 60;
-}
-
-/** Suggest an easy week if ≥ 60% of fixed compounds were Too heavy / Regressed for 2 weeks in a row. */
-export function easyWeekSuggested(sessions: Session[], week: number, equip: Equip, getEx: (id: string) => Exercise): boolean {
-  const bad = (w: number) => {
-    const rows = weeklyReview(sessions, w, equip, getEx).filter((r) => {
-      const slot = SLOTS.find((s) => s.id === r.slotId);
-      return slot?.kind === 'fixed';
-    });
-    return rows.length > 0 && rows.filter((r) => ['Too heavy', 'Regressed'].includes(r.review.status)).length / rows.length >= 0.6;
-  };
-  return bad(week - 1) && bad(week - 2);
-}

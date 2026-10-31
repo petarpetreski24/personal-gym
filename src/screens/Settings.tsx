@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useData } from '../store.tsx';
-import { addImported, exportAll, getEx, importAll, resetAll, saveSettings } from '../db.ts';
+import { exportAll, importAll, resetAll, saveSettings } from '../db.ts';
 import { LIBRARY } from '../seed/library.ts';
-import { parseHevy } from '../csv.ts';
+import ImportButton from './ImportButton.tsx';
 import { download } from '../util.ts';
 
 const EQUIPMENT = [...new Set(LIBRARY.map((e) => e.equipment).filter(Boolean))] as string[];
@@ -47,12 +47,7 @@ export default function Settings({ back }: { back: () => void }) {
       </div>
       <div className="card">
         <h3>Data</h3>
-        <label className="btn block">Import Hevy CSV
-          <input type="file" accept=".csv,text/csv" hidden onChange={readFile(async (t) => {
-            const n = await addImported(parseHevy(t, settings.blockStart));
-            setMsg(`Imported ${n} new sessions`);
-          })} />
-        </label>
+        <ImportButton />
         <button className="btn block" onClick={async () => download(`gym-backup-${new Date().toISOString().slice(0, 10)}.json`, await exportAll())}>Export JSON backup</button>
         <label className="btn block">Import JSON backup
           <input type="file" accept=".json,application/json" hidden onChange={readFile(async (t) => {
@@ -62,7 +57,7 @@ export default function Settings({ back }: { back: () => void }) {
         </label>
         <button className="btn danger block" onClick={async () => { if (confirm('Delete ALL data? This cannot be undone.')) { await resetAll(); setMsg('All data deleted'); } }}>Reset all data</button>
         {msg && <p className="note">{msg}</p>}
-        <p className="muted small">{getEx('bench-press-barbell').name} … data stays on this device only.</p>
+        <p className="muted small">Data stays on this device only.</p>
       </div>
     </>
   );

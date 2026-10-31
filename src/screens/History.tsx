@@ -1,17 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useData } from '../store.tsx';
 import { db, getEx } from '../db.ts';
 import { MUSCLE_TARGETS } from '../seed/program.ts';
 import { finished, sessionFlags, sessionMinutes, weekNumber, weekRange, weeklyReview, weeklyVolume, workingSets } from '../engine.ts';
 import { fmtDay, fmtNum, fmtSets } from '../util.ts';
 import type { Session } from '../types.ts';
+import ImportButton from './ImportButton.tsx';
 
 const PRE_FIX = new Date(2026, 8, 23);
 
 export default function History() {
   const { sessions, settings, remarks } = useData();
   const cur = weekNumber(new Date(), settings.blockStart);
-  const [week, setWeek] = useState(cur - 1);
+  // only weeks that have imported data, never future weeks
+  const weeks = [...new Set(finished(sessions).filter((s) => s.weekNumber <= cur).map((s) => s.weekNumber))].sort((a, b) => a - b);
+  const [picked, setPicked] = useState<number | null>(null);
+  const week = picked != null && weeks.includes(picked) ? picked : (weeks[weeks.length - 1] ?? cur);
+  const idx = weeks.indexOf(week);
   const [hidden, setHidden] = useState(() => { try { return localStorage.getItem('hideWarmupBanner') === '1'; } catch { return false; } });
   const { start, end } = weekRange(week, settings.blockStart);
   const inWeek = finished(sessions).filter((s) => s.weekNumber === week);
@@ -19,10 +24,11 @@ export default function History() {
   const vol = weeklyVolume(sessions, week, getEx);
   const remark = remarks.find((r) => r.weekNumber === week)?.text ?? '';
   const [text, setText] = useState(remark);
+  useEffect(() => { setText(remark); }, [week, remark]);
   const [copied, setCopied] = useState(false);
   const label = week >= 1 ? `Week ${week}` : 'Pre-block';
 
-  const go = (w: number) => { setWeek(w); setText(remarks.find((r) => r.weekNumber === w)?.text ?? ''); };
+  const go = (w: number) => { setPicked(w); setText(remarks.find((r) => r.weekNumber === w)?.text ?? ''); };
   const saveRemark = () => (text.trim() ? db.weekRemarks.put({ weekNumber: week, text }) : db.weekRemarks.delete(week));
 
   const editSet = (s: Session, ei: number, si: number, patch: { weightKg?: number | null; reps?: number | null }) => {
@@ -46,19 +52,21 @@ export default function History() {
 
   return (
     <>
-      <div className="card between">
-        <button className="btn" onClick={() => go(week - 1)}>‹</button>
-        <div className="center"><b>{label}</b><div className="muted small">{fmtDay(start)} – {fmtDay(end)}</div></div>
-        <button className="btn" onClick={() => go(week + 1)}>›</button>
-      </div>
-      <div className="row"><button className="chip btnchip" onClick={() => go(cur)}>This week</button><button className="chip btnchip" onClick={() => go(cur - 1)}>Last week</button></div>
+      <ImportButton />
+      {weeks.length === 0 && <div className="card muted">No history yet. Export your workouts from Hevy and import the CSV above.</div>}
+      {weeks.length > 0 && (
+        <div className="card between">
+          <button className="btn" disabled={idx <= 0} onClick={() => go(weeks[idx - 1])}>‹</button>
+          <div className="center"><b>{label}</b><div className="muted small">{fmtDay(start)} – {fmtDay(end)}</div></div>
+          <button className="btn" disabled={idx >= weeks.length - 1} onClick={() => go(weeks[idx + 1])}>›</button>
+        </div>
+      )}
 
       {!hidden && start < PRE_FIX && inWeek.some((s) => s.source === 'hevy_import') && (
         <div className="card note">Warm-ups before 23 Sep 2026 were logged as normal sets in Hevy, so those weeks may look heavier than they were.
           <div className="row"><button className="btn small" onClick={() => { setHidden(true); try { localStorage.setItem('hideWarmupBanner', '1'); } catch { /* ignore */ } }}>Dismiss</button></div></div>
       )}
 
-      {inWeek.length === 0 && <div className="card muted">No sessions this week.</div>}
       {inWeek.map((s) => (
         <details key={s.id} className="card">
           <summary><b>{s.title}</b> · {fmtDay(new Date(s.startedAt))} · {Math.round(sessionMinutes(s))} min</summary>

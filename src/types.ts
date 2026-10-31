@@ -68,7 +68,8 @@ export interface Session {
 
 export interface WeekRemark { weekNumber: number; text: string; }
 export interface ExerciseNote { exerciseId: string; text: string; }
-export interface SlotOverride { slotId: string; fromWeek: number; sets?: number; }
+/** Manual choice of variant for one rotating slot in one week. id = `${weekNumber}:${slotId}` */
+export interface RotationOverride { id: string; weekNumber: number; slotId: string; variant: 'A' | 'B' | 'C'; }
 
 export interface Equip {
   dumbbells: number[];
