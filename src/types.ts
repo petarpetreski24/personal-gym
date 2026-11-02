@@ -62,6 +62,7 @@ export interface Session {
   weekNumber: number;
   startedAt: string; endedAt?: string;
   remark?: string;
+  edited?: boolean; // a set was corrected in the app, so re-importing must not overwrite it
   source: 'app' | 'hevy_import' | 'seed';
   exercises: SessionExercise[];
 }
@@ -69,7 +70,10 @@ export interface Session {
 export interface WeekRemark { weekNumber: number; text: string; }
 export interface ExerciseNote { exerciseId: string; text: string; }
 /** Exercise locked in for one rotating slot in one week. id = `${weekNumber}:${slotId}` */
-export interface RotationOverride { id: string; weekNumber: number; slotId: string; variant: 'A' | 'B' | 'C'; }
+export interface RotationOverride {
+  id: string; weekNumber: number; slotId: string; variant: 'A' | 'B' | 'C';
+  exerciseId?: string; // the exercise itself, so a lock survives later changes to a slot's variants
+}
 
 export interface Equip {
   dumbbells: number[];

@@ -40,14 +40,14 @@ export const SLOTS: Slot[] = [
   f('B1', 'upperB', 'Vertical press', 'overhead-press-barbell', 3, 6, 10, [8, 9]),
   f('B2', 'upperB', 'Incline press', 'incline-db-press', 3, 8, 12, [8, 9]),
   f('B3', 'upperB', 'Supported row', 'one-arm-db-row', 3, 8, 12, [8, 9]),
-  r('B4', 'upperB', 'Chest fly', ['seated-cable-fly', 'low-to-high-cable-fly', 'flat-db-fly'], 2, 10, 15, [9, 10]),
-  r('B5a', 'upperB', 'Biceps', ['db-curl', 'incline-db-curl', 'bayesian-cable-curl'], 3, 8, 12, [9, 10], { superset: 'B5' }),
+  r('B4', 'upperB', 'Chest fly', ['seated-cable-fly', 'low-to-high-cable-fly', 'flat-db-fly'], 3, 10, 15, [9, 10]),
+  r('B5a', 'upperB', 'Biceps', ['db-curl', 'incline-db-curl', 'preacher-curl'], 3, 8, 12, [9, 10], { superset: 'B5' }),
   r('B5b', 'upperB', 'Triceps, pushdown', ['rope-pushdown', 'v-bar-pushdown', 'single-arm-reverse-pushdown'], 2, 10, 15, [9, 10], { superset: 'B5' }),
 
   f('C1', 'upperC', 'Chest press', 'chest-press-machine', 3, 8, 12, [8, 9]),
   f('C2', 'upperC', 'Pull-up', 'assisted-pull-up', 3, 6, 12, [8, 9]),
   r('C3', 'upperC', 'Side delts', ['db-lateral-raise', 'seated-db-lateral-raise', 'lean-away-db-lateral-raise'], 3, 12, 20, [9, 10]),
-  r('C4a', 'upperC', 'Biceps, extra', ['ez-bar-curl', 'hammer-curl', 'preacher-curl'], 3, 8, 12, [9, 10], { superset: 'C4' }),
+  r('C4a', 'upperC', 'Biceps, extra', ['ez-bar-curl', 'hammer-curl', 'bayesian-cable-curl'], 3, 8, 12, [9, 10], { superset: 'C4' }),
   r('C4b', 'upperC', 'Triceps, extra', ['two-hand-oh-db-ext', 'cable-cross-body-ext', 'rope-pushdown'], 3, 10, 15, [9, 10], { superset: 'C4' }),
 ];
 

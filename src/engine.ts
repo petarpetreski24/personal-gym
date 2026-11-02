@@ -38,7 +38,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 export const e1rm = (w: number, reps: number) => w * (1 + reps / 30);
 export const workingSets = (s: SetLog[]) => s.filter((x) => x.type !== 'warmup' && x.reps != null && x.reps > 0);
 const wt = (s: SetLog) => s.weightKg ?? 0;
-const inverted = (ex: Exercise) => ex.id === 'assisted-pull-up'; // weight = assistance, lower is harder
+export const inverted = (ex: Exercise) => ex.id === 'assisted-pull-up'; // weight = assistance, lower is harder
 
 function stepOf(ex: Exercise, eq: Equip) {
   return ex.loadType === 'cable' ? eq.cableStep : eq.barStep;
@@ -150,6 +150,19 @@ export function nextTarget({ ex, slot, history, equip }: TargetInput): Target {
   return { weightKg: base, repGoals: g, flags, reason: `Last: ${atBase.map((s) => s.reps).join(', ')} at ${base} kg → add a rep per set` };
 }
 
+/**
+ * Weeks the switchers step through: every block week up to this one (with or without data),
+ * any earlier pre-block weeks that have data, then `ahead` weeks after this one.
+ */
+export function navigableWeeks(sessions: Session[], cur: number, ahead = 0) {
+  const weeks = new Set(sessions.filter((s) => s.endedAt && s.weekNumber <= cur).map((s) => s.weekNumber));
+  for (let w = 1; w <= cur; w++) weeks.add(w);
+  weeks.add(cur);
+  const first = Math.max(cur, 1);
+  if (ahead) for (let w = first; w <= first + ahead; w++) weeks.add(w);
+  return [...weeks].sort((a, b) => a - b);
+}
+
 /* ---------- history lookup ---------- */
 const byStart = (a: Session, b: Session) => a.startedAt.localeCompare(b.startedAt);
 export const finished = (sessions: Session[]) => sessions.filter((s) => s.endedAt).sort(byStart);
@@ -162,6 +175,15 @@ export function dayOfSession(s: Session): DayId | undefined {
   return /\blower\b/i.test(s.title) ? 'lower' : undefined;
 }
 const slotUses = (slot: Slot, exerciseId: string) => slot.exerciseId === exerciseId || Object.values(slot.variants ?? {}).includes(exerciseId);
+/** A session that can hold this slot's work: the slot's own day, or a day that can't be told. */
+export function onSlotDay(s: Session, slot: Slot) {
+  const day = dayOfSession(s);
+  return !day || day === slot.dayId;
+}
+/** Exercises a session logged that none of its day's slots use. */
+export function offPlanEntries(s: Session) {
+  return s.exercises.filter((e) => workingSets(e.sets).length && offPlan(s, e));
+}
 /** Done on a day whose slots don't include it (e.g. a cable row on Upper B). Unknown days count as on plan. */
 function offPlan(s: Session, entry: SessionExercise) {
   if (entry.extra) return true;
@@ -189,9 +211,12 @@ export function targetFor(ex: Exercise, slot: TargetInput['slot'], sessions: Ses
 }
 
 /** Slot-like settings for any exercise (used for review/targets outside an active session). */
-export function slotFor(se: SessionExercise, getEx: (id: string) => Exercise): Pick<Slot, 'sets' | 'repMin' | 'repMax' | 'lockedLoadKg' | 'lowerBody'> {
+export function slotFor(se: SessionExercise, getEx: (id: string) => Exercise, session?: Session): Pick<Slot, 'sets' | 'repMin' | 'repMax' | 'lockedLoadKg' | 'lowerBody'> {
   const byId = se.slotId ? SLOTS.find((s) => s.id === se.slotId) : undefined;
-  const slot = byId ?? SLOTS.find((s) => s.exerciseId === se.exerciseId || Object.values(s.variants ?? {}).includes(se.exerciseId));
+  // an exercise can sit in several slots with different set counts, so prefer the session's own day
+  const uses = SLOTS.filter((s) => slotUses(s, se.exerciseId));
+  const day = session && dayOfSession(session);
+  const slot = byId ?? uses.find((s) => s.dayId === day) ?? uses[0];
   if (slot) return slot;
   const iso = getEx(se.exerciseId).type === 'isolation';
   return { sets: 3, repMin: iso ? 10 : 8, repMax: iso ? 15 : 12 };
@@ -224,10 +249,13 @@ export function reviewExercise(curAll: SetLog[], prevAll: SetLog[] | undefined, 
     return { status: 'Adjust: pyramid', tone: 'warn', text: 'More than one working weight – use straight sets' };
   if (prev && prev.length) {
     const be = bestE1rm(cur), pe = bestE1rm(prev);
-    const sameW = (inv ? Math.min(...prev.map(wt)) : Math.max(...prev.map(wt))) === heavy;
-    if (be > pe + 1e-6 || (sameW && totalReps(cur) > totalReps(prev)))
-      return { status: 'Progressing', tone: 'ok', text: 'e1RM or reps up' };
-    if (pe > 0 && be < pe * 0.95) return { status: 'Regressed', tone: 'warn', text: 'e1RM down more than 5%' };
+    const prevHeavy = inv ? Math.min(...prev.map(wt)) : Math.max(...prev.map(wt));
+    // with assistance a lower number is the stronger result, so e1RM doesn't apply
+    const up = inv ? heavy < prevHeavy : be > pe + 1e-6;
+    const down = inv ? heavy > prevHeavy * 1.05 : pe > 0 && be < pe * 0.95;
+    if (up || (prevHeavy === heavy && totalReps(cur) > totalReps(prev)))
+      return { status: 'Progressing', tone: 'ok', text: inv ? 'Less assistance or more reps' : 'e1RM or reps up' };
+    if (down) return { status: 'Regressed', tone: 'warn', text: inv ? 'Assistance up more than 5%' : 'e1RM down more than 5%' };
     return { status: 'On track', tone: 'ok', text: 'Within range, no regression' };
   }
   return { status: 'New', tone: 'neutral', text: 'First time' };
@@ -244,7 +272,7 @@ export function weeklyReview(sessions: Session[], week: number, equip: Equip, ge
       const ex = getEx(se.exerciseId);
       const prior = all.filter((p) => p.startedAt < s.startedAt);
       const prev = entriesFor(ex.id, prior)[0]?.entry.sets;
-      const slot = slotFor(se, getEx);
+      const slot = slotFor(se, getEx, s);
       const hist = entriesFor(ex.id, all.filter((p) => p.startedAt <= s.startedAt), { forTarget: true }).map((e) => e.entry.sets);
       rows.push({
         sessionId: s.id, slotId: se.slotId, exerciseId: ex.id, sets: se.sets,
@@ -262,10 +290,15 @@ export function sessionFlags(s: Session, getEx: (id: string) => Exercise): strin
     const mins = (new Date(s.endedAt).getTime() - new Date(s.startedAt).getTime()) / 60000;
     if (mins > 65) out.push(`Long session: ${Math.round(mins)} min`);
   }
+  const day = dayOfSession(s);
+  const worked = s.exercises.filter((e) => workingSets(e.sets).length);
+  if (day && s.weekNumber >= 1) { // before the block, sessions followed a different program
+    for (const slot of SLOTS.filter((x) => x.dayId === day)) {
+      if (!worked.some((e) => slotUses(slot, e.exerciseId))) out.push(`Skipped: ${slot.label}`);
+    }
+    for (const e of worked) if (offPlan(s, e)) out.push(`Extra exercise: ${getEx(e.exerciseId).name}`);
+  }
   for (const e of s.exercises) {
-    const done = workingSets(e.sets).length;
-    if (e.slotId && !done) out.push(`Skipped: ${getEx(e.exerciseId).name}`);
-    else if (!e.slotId && done && s.dayId) out.push(`Extra exercise: ${getEx(e.exerciseId).name}`);
     if (e.swapReason === 'discomfort') out.push(`Discomfort swap: ${getEx(e.exerciseId).name}${e.note ? ` – ${e.note}` : ''}`);
   }
   return out;

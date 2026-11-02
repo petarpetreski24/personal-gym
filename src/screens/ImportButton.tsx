@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useData } from '../store.tsx';
-import { addImported } from '../db.ts';
+import { addImported, removeSessions } from '../db.ts';
 import { parseHevy } from '../csv.ts';
+import { fmtDate } from '../util.ts';
 
 export default function ImportButton() {
   const { settings } = useData();
@@ -11,10 +12,21 @@ export default function ImportButton() {
     e.target.value = '';
     if (!f) return;
     try {
-      const n = await addImported(parseHevy(await f.text(), settings.blockStart));
-      setMsg(n ? `Imported ${n} new session${n > 1 ? 's' : ''}` : 'Nothing new – already up to date');
+      const plan = await addImported(parseHevy(await f.text(), settings.blockStart));
+      const parts = [];
+      if (plan.add.length) parts.push(`${plan.add.length} new`);
+      if (plan.update.length) parts.push(`${plan.update.length} updated from Hevy`);
+      if (plan.keptEdited) parts.push(`${plan.keptEdited} changed in Hevy but kept, because you edited them here`);
+      if (plan.missing.length) {
+        const list = plan.missing.map((s) => `${fmtDate(s.startedAt)} ${s.title}`).join('\n');
+        if (confirm(`These sessions are no longer in your Hevy export (deleted or re-timed there):\n\n${list}\n\nRemove them from the app?`)) {
+          await removeSessions(plan.missing.map((s) => s.id));
+          parts.push(`${plan.missing.length} removed`);
+        } else parts.push(`${plan.missing.length} not in the export, kept`);
+      }
+      setMsg(parts.length ? `Import done: ${parts.join(', ')}.` : 'Nothing new. Already up to date.');
     } catch (err) {
-      setMsg(`Import failed: ${(err as Error).message}`);
+      setMsg(`Import failed, nothing was changed: ${(err as Error).message}`);
     }
   };
   return (

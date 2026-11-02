@@ -1,6 +1,6 @@
 import type { Exercise, ExerciseType, LoadType, Muscle } from '../types.ts';
 
-const FLY_CUE = 'Elbows soft and below shoulder height, shoulder blades pinned back, stop when the stretch is in the chest, not the front of the shoulder. If it still bothers you, swap this week to 2 sets of machine chest press.';
+const FLY_CUE = 'Elbows soft and below shoulder height, shoulder blades pinned back, stop when the stretch is in the chest, not the front of the shoulder. If it still bothers you, swap this week to 3 sets of machine chest press.';
 
 type Opt = { perSide?: boolean; equipment?: string; mistakes?: string[] };
 function x(
@@ -35,7 +35,7 @@ export const LIBRARY: Exercise[] = [
   x('cable-rear-delt-fly', 'Cable Rear Delt Fly', I, 'cable', ['rear_delts'], [], ['Rear Delt Reverse Fly (Cable)'], 'Cables at shoulder height, crossed (left hand holds the right cable); pull out wide with straight arms.'),
   x('rope-face-pull', 'Face Pull (Rope)', I, 'cable', ['rear_delts'], ['lats_upper_back'], ['Face Pull'], 'Rope at forehead height; pull to the face; elbows high; hands finish beside the ears.'),
   x('reverse-pec-deck', 'Reverse Pec Deck', I, 'machine', ['rear_delts'], [], ['Rear Delt Reverse Fly (Machine)'], 'Face the pad, handles at shoulder height, sweep the arms back; let the delts do it rather than squeezing the shoulder blades.', [], { equipment: 'reverse pec deck' }),
-  x('overhead-cable-triceps-ext', 'Overhead Triceps Extension (Cable)', I, 'cable', ['triceps'], [], ['Overhead Triceps Extension (Cable)'], 'Face away from the pulley; elbows by the head; deep stretch behind; full extension. Overhead work grew the triceps about 1.5× more than pushdowns in a 12-week study (Maeo et al., 2023).'),
+  x('overhead-cable-triceps-ext', 'Overhead Triceps Extension (Cable)', I, 'cable', ['triceps'], [], ['Overhead Triceps Extension (Cable)'], 'Face away from the pulley; elbows by the head; deep stretch behind; full extension. Overhead work grew the triceps about 1.4× more than pushdowns in a 12-week study (Maeo et al., 2023).'),
   x('single-arm-oh-db-ext', 'Single-arm Overhead DB Extension', I, 'dumbbell', ['triceps'], [], ['Single Arm Triceps Extension (Dumbbell)'], 'Seated, elbow pointing up, lower the DB behind the head until the triceps stretch.', [], { perSide: true }),
   x('ez-skull-crusher-behind-head', 'EZ-bar Skull Crusher (behind head)', I, 'barbell', ['triceps'], [], ['Skullcrusher (Barbell)'], 'Lying; lower the bar behind the top of the head, not to the forehead; upper arms angled slightly back.'),
   x('two-hand-oh-db-ext', 'Overhead DB Extension (two hands)', I, 'dumbbell', ['triceps'], [], ['Triceps Extension (Dumbbell)'], 'Hold one DB by the plate end with both hands, seated; same deep stretch.'),

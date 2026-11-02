@@ -24,6 +24,9 @@ export const autoVariant = (slot: Slot, week: number, settings: Settings) => pic
 /** What a slot uses in a week: the exercise locked for that week if any, else the calendar's pick. */
 export function plannedVariant(slot: Slot, week: number, settings: Settings, rotation: RotationOverride[]) {
   const o = rotation.find((r) => r.weekNumber === week && r.slotId === slot.id);
-  if (o) return { variant: o.variant, exerciseId: slot.variants![o.variant], locked: true };
+  if (o) {
+    const exerciseId = o.exerciseId ?? slot.variants![o.variant];
+    return { variant: LETTERS.find((l) => slot.variants![l] === exerciseId) ?? o.variant, exerciseId, locked: true };
+  }
   return { ...autoVariant(slot, week, settings), locked: false };
 }

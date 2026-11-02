@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useData } from '../store.tsx';
 import { db, getEx } from '../db.ts';
 import { MUSCLE_TARGETS } from '../seed/program.ts';
-import { finished, sessionFlags, sessionMinutes, weekNumber, weekRange, weeklyReview, weeklyVolume, workingSets } from '../engine.ts';
-import { fmtDay, fmtNum, fmtSets } from '../util.ts';
+import { finished, navigableWeeks, sessionFlags, sessionMinutes, weekNumber, weekRange, weeklyReview, weeklyVolume, workingSets } from '../engine.ts';
+import { fmtDay, fmtNum, fmtSets, parseNum } from '../util.ts';
 import type { Session } from '../types.ts';
 import ImportButton from './ImportButton.tsx';
 
@@ -12,8 +12,7 @@ const PRE_FIX = new Date(2026, 8, 23);
 export default function History() {
   const { sessions, settings, remarks } = useData();
   const cur = weekNumber(new Date(), settings.blockStart);
-  // this week plus earlier weeks that have imported data, never future weeks
-  const weeks = [...new Set([cur, ...finished(sessions).filter((s) => s.weekNumber < cur).map((s) => s.weekNumber)])].sort((a, b) => a - b);
+  const weeks = navigableWeeks(sessions, cur);
   const [picked, setPicked] = useState<number | null>(null);
   const week = picked != null && weeks.includes(picked) ? picked : cur;
   const idx = weeks.indexOf(week);
@@ -31,9 +30,12 @@ export default function History() {
   const go = (w: number) => { setPicked(w); setText(remarks.find((r) => r.weekNumber === w)?.text ?? ''); };
   const saveRemark = () => (text.trim() ? db.weekRemarks.put({ weekNumber: week, text }) : db.weekRemarks.delete(week));
 
-  const editSet = (s: Session, ei: number, si: number, patch: { weightKg?: number | null; reps?: number | null }) => {
+  const editSet = (s: Session, ei: number, si: number, field: 'weightKg' | 'reps', input: HTMLInputElement) => {
+    const value = parseNum(input.value);
+    if (value === s.exercises[ei].sets[si][field]) return;
     const next = structuredClone(s);
-    Object.assign(next.exercises[ei].sets[si], patch);
+    next.exercises[ei].sets[si][field] = value;
+    next.edited = true;
     db.sessions.put(next);
   };
 
@@ -53,10 +55,10 @@ export default function History() {
   return (
     <>
       <ImportButton />
-      <div className="card between">
-        <button className="btn" aria-label="Previous week" disabled={idx <= 0} onClick={() => go(weeks[idx - 1])}>‹</button>
+      <div className="card between weekhead">
+        <button className="btn" aria-label="Previous week" disabled={idx <= 0} onClick={() => go(weeks[idx - 1])}>&lt;</button>
         <div className="center"><b>{label}{week === cur ? ' · this week' : ''}</b><div className="muted small">{fmtDay(start)} – {fmtDay(end)}</div></div>
-        <button className="btn" aria-label="Next week" disabled={idx >= weeks.length - 1} onClick={() => go(weeks[idx + 1])}>›</button>
+        <button className="btn" aria-label="Next week" disabled={idx >= weeks.length - 1} onClick={() => go(weeks[idx + 1])}>&gt;</button>
       </div>
       {inWeek.length === 0 && <div className="card muted">Nothing imported for this week yet. Export your workouts from Hevy and import the CSV above.</div>}
 
@@ -68,6 +70,7 @@ export default function History() {
       {inWeek.map((s) => (
         <details key={s.id} className="card">
           <summary><b>{s.title}</b> · {fmtDay(new Date(s.startedAt))} · {Math.round(sessionMinutes(s))} min</summary>
+          {s.edited && <p className="muted small">Edited here. Re-importing from Hevy won't overwrite this session.</p>}
           {s.remark && <p><em>{s.remark}</em></p>}
           {sessionFlags(s, getEx).map((f) => <div key={f} className="chip warn block">{f}</div>)}
           {s.exercises.map((e, ei) => e.sets.length > 0 && (
@@ -75,10 +78,10 @@ export default function History() {
               <b>{getEx(e.exerciseId).name}</b>{e.note && <em className="muted"> — {e.note}</em>}
               {e.sets.map((x, si) => (
                 <div key={si} className="hset">
-                  <span className="muted">{x.type === 'warmup' ? 'W' : si + 1}</span>
-                  <input inputMode="decimal" defaultValue={x.weightKg ?? ''} placeholder="BW" onBlur={(ev) => editSet(s, ei, si, { weightKg: ev.target.value === '' ? null : Number(ev.target.value) })} />
+                  <span className="muted">{x.type === 'warmup' ? 'W' : e.sets.slice(0, si).filter((y) => y.type !== 'warmup').length + 1}</span>
+                  <input inputMode="decimal" defaultValue={x.weightKg ?? ''} placeholder="BW" onBlur={(ev) => editSet(s, ei, si, 'weightKg', ev.target)} />
                   <span>×</span>
-                  <input inputMode="numeric" defaultValue={x.reps ?? ''} onBlur={(ev) => editSet(s, ei, si, { reps: ev.target.value === '' ? null : Number(ev.target.value) })} />
+                  <input inputMode="numeric" defaultValue={x.reps ?? ''} onBlur={(ev) => editSet(s, ei, si, 'reps', ev.target)} />
                 </div>
               ))}
             </div>
@@ -114,7 +117,7 @@ export default function History() {
               return <div key={t.muscle} className="between small"><span>{t.label}</span><span><span className={`chip ${cls}`}>{fmtNum(v)}</span> <span className="muted">/ {t.min}{t.max ? `–${t.max}` : '+'}{t.note ? ` ${t.note}` : ''}</span></span></div>;
             })}
           </div>
-          <button className="btn primary big" onClick={summary}>{copied ? 'Copied ✓' : 'Copy week summary'}</button>
+          <button className="btn primary big" onClick={summary}>{copied ? 'Copied' : 'Copy week summary'}</button>
         </>
       )}
     </>

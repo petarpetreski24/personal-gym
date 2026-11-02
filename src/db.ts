@@ -3,7 +3,8 @@ import type { Exercise, ExerciseNote, RotationOverride, Session, Settings, WeekR
 import { LIB } from './seed/library.ts';
 import { DEFAULT_BLOCK_START, DEFAULT_EQUIP } from './seed/program.ts';
 import { SEED_NOTES, SEED_REMARKS } from './seed/week1.ts';
-import type { HevyResult } from './csv.ts';
+import { normalizeSessions, planImport, type HevyResult, type ImportPlan } from './csv.ts';
+import { mondayOf, parseDate } from './engine.ts';
 
 export interface LegacyRow { id: string; name: string; type: 'compound' | 'isolation' }
 
@@ -49,15 +50,39 @@ export async function getSettings(): Promise<Settings> {
 }
 export const saveSettings = (s: Settings) => db.kv.put({ key: 'settings', value: s });
 
+/** Remarks and locks are keyed by week number, so they move with the block start and stay on their calendar week. */
+export async function saveBlockStart(s: Settings, blockStart: string) {
+  const delta = Math.round((mondayOf(parseDate(s.blockStart)).getTime() - mondayOf(parseDate(blockStart)).getTime()) / (7 * 86400000));
+  await db.transaction('rw', db.kv, db.weekRemarks, db.rotation, async () => {
+    if (delta) {
+      const remarks = await db.weekRemarks.toArray();
+      const locks = await db.rotation.toArray();
+      await db.weekRemarks.clear();
+      await db.rotation.clear();
+      await db.weekRemarks.bulkPut(remarks.map((r) => ({ ...r, weekNumber: r.weekNumber + delta })));
+      await db.rotation.bulkPut(locks.map((r) => ({ ...r, weekNumber: r.weekNumber + delta, id: `${r.weekNumber + delta}:${r.slotId}` })));
+    }
+    await saveSettings({ ...s, blockStart });
+  });
+}
+
 const hevySeed = import.meta.glob('./seed/hevy.json', { eager: true, import: 'default' }) as Record<string, HevyResult>;
 
-export async function addImported(res: HevyResult): Promise<number> {
-  const existing = new Set(await db.sessions.toCollection().primaryKeys());
-  const fresh = res.sessions.filter((s) => !existing.has(s.id));
-  await db.sessions.bulkPut(fresh);
+export async function addImported(res: HevyResult): Promise<ImportPlan> {
+  const plan = planImport(await db.sessions.toArray(), res.sessions);
+  // legacy names first: the sessions' live query re-renders as soon as they are written
   await db.legacy.bulkPut(res.legacy);
   setLegacy(await db.legacy.toArray());
-  return fresh.length;
+  await db.sessions.bulkPut([...plan.add, ...plan.update]);
+  return plan;
+}
+export const removeSessions = (ids: string[]) => db.sessions.bulkDelete(ids);
+
+async function normalizeData() {
+  const before = await db.sessions.toArray();
+  const after = normalizeSessions(before);
+  if (JSON.stringify(before) === JSON.stringify(after)) return;
+  await db.transaction('rw', db.sessions, async () => { await db.sessions.clear(); await db.sessions.bulkPut(after); });
 }
 
 export async function seedIfEmpty() {
@@ -69,22 +94,24 @@ export async function seedIfEmpty() {
     });
     for (const h of Object.values(hevySeed)) await addImported(h);
   }
-  // earlier versions pre-seeded week-1 sessions by hand; history now comes only from Hevy imports
-  await db.sessions.filter((s) => s.source === 'seed' || s.source === 'app').delete();
+  await normalizeData();
   setLegacy(await db.legacy.toArray());
 }
 
+const BACKUP_VERSION = 1;
 export async function exportAll() {
   const out: Record<string, unknown> = {};
   for (const t of db.tables) out[t.name] = await t.toArray();
-  return JSON.stringify({ app: 'gym-tracker', version: 1, exportedAt: new Date().toISOString(), data: out }, null, 1);
+  return JSON.stringify({ app: 'gym-tracker', version: BACKUP_VERSION, exportedAt: new Date().toISOString(), data: out }, null, 1);
 }
 export async function importAll(text: string) {
   const j = JSON.parse(text);
-  if (j.app !== 'gym-tracker') throw new Error('Not a Gym Tracker backup');
+  if (j.app !== 'gym-tracker' || typeof j.data !== 'object' || !j.data) throw new Error('Not a Gym Tracker backup');
+  if (j.version > BACKUP_VERSION) throw new Error('This backup is from a newer version of the app. Update the app first.');
   await db.transaction('rw', db.tables, async () => {
     for (const t of db.tables) { await t.clear(); await t.bulkPut(j.data[t.name] ?? []); }
   });
+  await normalizeData();
   setLegacy(await db.legacy.toArray());
 }
 export async function resetAll() {

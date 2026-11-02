@@ -15,7 +15,7 @@ npm run build    # static site in dist/
 
 ## Weekly routine
 
-Hevy → Settings → Export workout data (CSV) → open the app → History → **Import Hevy CSV**. Re-importing the full export is safe; sessions already imported are skipped.
+Hevy → Settings → Export workout data (CSV) → open the app → History → **Import Hevy CSV**. Always import the full export. A session is identified by its start time, so re-importing brings in renames and edits made in Hevy. Sets you corrected in the app are kept, and sessions no longer in the export are removed only after you confirm.
 
 ## Deploy (GitHub Pages)
 

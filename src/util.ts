@@ -1,6 +1,11 @@
 import type { SetLog } from './types.ts';
 import { workingSets } from './engine.ts';
 
+/** Typed number, accepting a decimal comma (52,5). Empty or unreadable gives null, never NaN. */
+export function parseNum(v: string): number | null {
+  const n = Number(v.trim().replace(',', '.'));
+  return v.trim() === '' || !Number.isFinite(n) ? null : n;
+}
 export const fmtNum = (n: number | null | undefined) => (n == null ? '–' : String(Math.round(n * 100) / 100));
 export const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 export const fmtDay = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });

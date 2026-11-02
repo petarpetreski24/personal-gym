@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pickVariant, stepLoad, targetFor, variantForWeek, weekNumber } from './engine.ts';
+import { navigableWeeks, pickVariant, stepLoad, targetFor, variantForWeek, weekNumber } from './engine.ts';
 import { LIB } from './seed/library.ts';
 import { DEFAULT_EQUIP, SLOT_BY_ID } from './seed/program.ts';
 import { SEED_SESSIONS } from './seed/week1.ts';
@@ -24,6 +24,17 @@ describe('rotation & weeks', () => {
     const slot = SLOT_BY_ID['L3'];
     expect(pickVariant(slot, 3, { ...eq, unavailable: ['lying leg curl'] }, getEx).variant).toBe('A');
     expect(pickVariant(slot, 3, eq, getEx).variant).toBe('C');
+  });
+});
+
+describe('week switchers', () => {
+  const at = (weekNumber: number) => ({ ...sessions[0], weekNumber });
+  it('can always go back to earlier block weeks, even with no data', () => {
+    expect(navigableWeeks([], 2)).toEqual([1, 2]);
+    expect(navigableWeeks([], 4, 2)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+  it('adds pre-block weeks only when they have data, and never a future week without asking', () => {
+    expect(navigableWeeks([at(-3), at(9)], 2)).toEqual([-3, 1, 2]);
   });
 });
 

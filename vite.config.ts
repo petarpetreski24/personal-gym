@@ -9,12 +9,13 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon-192.png', 'icon-512.png'],
+      workbox: { globPatterns: ['**/*.{js,css,html,woff2}'] }, // fonts must work offline
       manifest: {
         name: 'Gym Tracker',
         short_name: 'Gym',
         description: 'Minimal gym program tracker',
-        theme_color: '#0f1115',
-        background_color: '#0f1115',
+        theme_color: '#dcdddc',
+        background_color: '#e8e9e8',
         display: 'standalone',
         orientation: 'portrait',
         start_url: './',

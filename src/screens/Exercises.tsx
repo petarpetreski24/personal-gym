@@ -3,7 +3,7 @@ import { useData } from '../store.tsx';
 import { db, getEx } from '../db.ts';
 import { LIBRARY } from '../seed/library.ts';
 import { SLOTS } from '../seed/program.ts';
-import { bestE1rm, entriesFor, workingSets, e1rm } from '../engine.ts';
+import { bestE1rm, entriesFor, inverted, workingSets, e1rm } from '../engine.ts';
 import { MUSCLE_NAME, fmtDate, fmtNum, fmtSets } from '../util.ts';
 import { SeriesChart, seriesFor } from './Charts.tsx';
 import type { Exercise } from '../types.ts';
@@ -45,13 +45,14 @@ function Detail({ id, back }: { id: string; back: () => void }) {
   const slots = SLOTS.filter((s) => s.exerciseId === id || Object.values(s.variants ?? {}).includes(id));
   const [note, setNote] = useState(notes.find((n) => n.exerciseId === id)?.text ?? '');
   const all = hist.flatMap((h) => workingSets(h.entry.sets));
-  const heaviest = all.length ? Math.max(...all.map((s) => s.weightKg ?? 0)) : 0;
+  const assisted = inverted(ex); // logged weight is assistance: lower is the record, and e1RM doesn't apply
+  const heaviest = all.length ? (assisted ? Math.min : Math.max)(...all.map((s) => s.weightKg ?? 0)) : 0;
   const bestVol = all.length ? all.reduce((b, s) => ((s.weightKg ?? 0) * s.reps! > (b.weightKg ?? 0) * b.reps! ? s : b)) : null;
   const best = hist.length ? Math.max(...hist.map((h) => bestE1rm(h.entry.sets))) : 0;
 
   return (
     <>
-      <button className="btn" onClick={back}>‹ Back</button>
+      <button className="btn" onClick={back}>Back</button>
       <div className="card">
         <h2>{ex.name}</h2>
         <div className="chips">
@@ -69,11 +70,15 @@ function Detail({ id, back }: { id: string; back: () => void }) {
       </div>
       <div className="card">
         <h3>Personal records</h3>
-        <div className="between small"><span>Heaviest</span><b>{fmtNum(heaviest)} kg</b></div>
-        <div className="between small"><span>Best e1RM</span><b>{fmtNum(best)} kg</b></div>
-        <div className="between small"><span>Best volume set</span><b>{bestVol ? `${fmtNum(bestVol.weightKg)}×${bestVol.reps} (${fmtNum(e1rm(bestVol.weightKg ?? 0, bestVol.reps!))} e1RM)` : '–'}</b></div>
-        <h3>e1RM over time</h3>
-        <SeriesChart data={seriesFor(id, sessions)} />
+        <div className="between small"><span>{assisted ? 'Least assistance' : 'Heaviest'}</span><b>{fmtNum(heaviest)} kg</b></div>
+        {!assisted && (
+          <>
+            <div className="between small"><span>Best e1RM</span><b>{fmtNum(best)} kg</b></div>
+            <div className="between small"><span>Best volume set</span><b>{bestVol ? `${fmtNum(bestVol.weightKg)}×${bestVol.reps} (${fmtNum(e1rm(bestVol.weightKg ?? 0, bestVol.reps!))} e1RM)` : '–'}</b></div>
+          </>
+        )}
+        <h3>{assisted ? 'Assistance over time' : 'e1RM over time'}</h3>
+        <SeriesChart data={seriesFor(id, sessions, assisted ? 'weight' : 'e1rm')} />
       </div>
       <div className="card">
         <h3>History</h3>

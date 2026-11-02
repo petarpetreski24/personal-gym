@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useData } from '../store.tsx';
-import { exportAll, importAll, resetAll, saveSettings } from '../db.ts';
+import { exportAll, importAll, resetAll, saveBlockStart, saveSettings } from '../db.ts';
 import { LIBRARY } from '../seed/library.ts';
 import ImportButton from './ImportButton.tsx';
-import { download } from '../util.ts';
+import { download, parseNum } from '../util.ts';
 
 const EQUIPMENT = [...new Set(LIBRARY.map((e) => e.equipment).filter(Boolean))] as string[];
 
@@ -24,19 +24,19 @@ export default function Settings({ back }: { back: () => void }) {
 
   return (
     <>
-      <button className="btn" onClick={back}>‹ Back</button>
+      <button className="btn" onClick={back}>Back</button>
       <div className="card">
         <h3>Block</h3>
-        <label>Block start (Monday)<input type="date" value={settings.blockStart} onChange={(e) => e.target.value && save({ blockStart: e.target.value })} /></label>
+        <label>Block start (Monday)<input type="date" defaultValue={settings.blockStart} onBlur={(e) => e.target.value && e.target.value !== settings.blockStart && saveBlockStart(settings, e.target.value)} /></label>
       </div>
       <div className="card">
         <h3>Equipment</h3>
         <label>Dumbbell weights (kg, comma separated)
           <input value={dbs} onChange={(e) => setDbs(e.target.value)}
-            onBlur={() => { const l = dbs.split(',').map((x) => Number(x.trim())).filter((x) => x > 0).sort((a, b) => a - b); if (l.length) saveEq({ dumbbells: l }); }} />
+            onBlur={() => { const l = dbs.split(/[,\s]+/).map(parseNum).filter((x): x is number => x != null && x > 0).sort((a, b) => a - b); if (l.length) saveEq({ dumbbells: l }); }} />
         </label>
-        <label>Cable stack step (kg)<input inputMode="decimal" defaultValue={eq.cableStep} onBlur={(e) => Number(e.target.value) > 0 && saveEq({ cableStep: Number(e.target.value) })} /></label>
-        <label>Barbell / machine increment (kg)<input inputMode="decimal" defaultValue={eq.barStep} onBlur={(e) => Number(e.target.value) > 0 && saveEq({ barStep: Number(e.target.value) })} /></label>
+        <label>Cable stack step (kg)<input inputMode="decimal" defaultValue={eq.cableStep} onBlur={(e) => { const n = parseNum(e.target.value); if (n && n > 0) saveEq({ cableStep: n }); }} /></label>
+        <label>Barbell / machine increment (kg)<input inputMode="decimal" defaultValue={eq.barStep} onBlur={(e) => { const n = parseNum(e.target.value); if (n && n > 0) saveEq({ barStep: n }); }} /></label>
         <p className="muted small">Unavailable equipment (rotation skips these):</p>
         {EQUIPMENT.map((q) => (
           <label key={q} className="check">
