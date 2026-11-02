@@ -1,4 +1,4 @@
-import type { Equip, Exercise, Muscle, Session, SessionExercise, SetLog, Slot, Target } from './types.ts';
+import type { DayId, Equip, Exercise, Muscle, Session, SessionExercise, SetLog, Slot, Target } from './types.ts';
 import { SLOTS } from './seed/program.ts';
 
 /* ---------- weeks & rotation ---------- */
@@ -154,6 +154,21 @@ export function nextTarget({ ex, slot, history, equip }: TargetInput): Target {
 const byStart = (a: Session, b: Session) => a.startedAt.localeCompare(b.startedAt);
 export const finished = (sessions: Session[]) => sessions.filter((s) => s.endedAt).sort(byStart);
 
+/** The program day of a session: its dayId, or read from a Hevy title such as "Upper A". */
+export function dayOfSession(s: Session): DayId | undefined {
+  if (s.dayId) return s.dayId;
+  const upper = s.title.match(/\bupper\s*([abc])\b/i);
+  if (upper) return `upper${upper[1].toUpperCase()}` as DayId;
+  return /\blower\b/i.test(s.title) ? 'lower' : undefined;
+}
+const slotUses = (slot: Slot, exerciseId: string) => slot.exerciseId === exerciseId || Object.values(slot.variants ?? {}).includes(exerciseId);
+/** Done on a day whose slots don't include it (e.g. a cable row on Upper B). Unknown days count as on plan. */
+function offPlan(s: Session, entry: SessionExercise) {
+  if (entry.extra) return true;
+  const day = dayOfSession(s);
+  return !!day && !SLOTS.some((slot) => slot.dayId === day && slotUses(slot, entry.exerciseId));
+}
+
 /** Past entries of an exercise, newest first. forTarget excludes extras (outside the plan). */
 export function entriesFor(exerciseId: string, sessions: Session[], opts: { forTarget?: boolean; excludeId?: string } = {}) {
   const out: { session: Session; entry: SessionExercise }[] = [];
@@ -161,7 +176,7 @@ export function entriesFor(exerciseId: string, sessions: Session[], opts: { forT
     if (s.id === opts.excludeId) continue;
     for (const entry of s.exercises) {
       if (entry.exerciseId !== exerciseId) continue;
-      if (opts.forTarget && entry.extra) continue;
+      if (opts.forTarget && offPlan(s, entry)) continue;
       if (workingSets(entry.sets).length) out.push({ session: s, entry });
     }
   }

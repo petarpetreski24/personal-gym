@@ -67,3 +67,14 @@ details > summary { cursor: pointer; min-height: 44px; display: flex; align-item
 .rules ul { padding-left: 18px; margin: 0; }
 
 .full { width: 100%; margin-top: 4px; } .cal { border-top: 1px solid var(--line); } .cal summary { font-size: 14px; } .right { text-align: right; max-width: 60%; } button:disabled { opacity: .35; }
+
+.thisweek { margin-top: 8px; }
+.daysum { justify-content: space-between; gap: 8px; }
+.slot { padding: 10px 0; border-top: 1px solid var(--line); }
+.slot.ss { border-left: 3px solid var(--accent); padding-left: 8px; }
+.einfo { margin-top: 4px; }
+.opt { margin-top: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; }
+.opt.planned { border-color: var(--accent); }
+.opt.lockedopt { border-color: var(--ok); }
+.kv { display: grid; grid-template-columns: 76px 1fr; gap: 6px; font-size: 14px; margin-top: 4px; }
+.kv .muted { font-size: 13px; }

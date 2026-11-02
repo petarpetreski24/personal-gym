@@ -18,12 +18,12 @@ export const rotatingSlots = (unique = false) => {
   });
 };
 
-/** The calendar's pick for a slot (equipment-aware), ignoring manual choices. */
+/** The calendar's pick for a slot (equipment-aware), ignoring locks. */
 export const autoVariant = (slot: Slot, week: number, settings: Settings) => pickVariant(slot, week, settings.equip, getEx);
 
-/** What the plan says for a slot in a week: manual choice if any, else the calendar. */
+/** What a slot uses in a week: the exercise locked for that week if any, else the calendar's pick. */
 export function plannedVariant(slot: Slot, week: number, settings: Settings, rotation: RotationOverride[]) {
   const o = rotation.find((r) => r.weekNumber === week && r.slotId === slot.id);
-  if (o) return { variant: o.variant, exerciseId: slot.variants![o.variant], manual: true };
-  return { ...autoVariant(slot, week, settings), manual: false };
+  if (o) return { variant: o.variant, exerciseId: slot.variants![o.variant], locked: true };
+  return { ...autoVariant(slot, week, settings), locked: false };
 }

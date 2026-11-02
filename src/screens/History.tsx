@@ -12,10 +12,10 @@ const PRE_FIX = new Date(2026, 8, 23);
 export default function History() {
   const { sessions, settings, remarks } = useData();
   const cur = weekNumber(new Date(), settings.blockStart);
-  // only weeks that have imported data, never future weeks
-  const weeks = [...new Set(finished(sessions).filter((s) => s.weekNumber <= cur).map((s) => s.weekNumber))].sort((a, b) => a - b);
+  // this week plus earlier weeks that have imported data, never future weeks
+  const weeks = [...new Set([cur, ...finished(sessions).filter((s) => s.weekNumber < cur).map((s) => s.weekNumber)])].sort((a, b) => a - b);
   const [picked, setPicked] = useState<number | null>(null);
-  const week = picked != null && weeks.includes(picked) ? picked : (weeks[weeks.length - 1] ?? cur);
+  const week = picked != null && weeks.includes(picked) ? picked : cur;
   const idx = weeks.indexOf(week);
   const [hidden, setHidden] = useState(() => { try { return localStorage.getItem('hideWarmupBanner') === '1'; } catch { return false; } });
   const { start, end } = weekRange(week, settings.blockStart);
@@ -53,14 +53,12 @@ export default function History() {
   return (
     <>
       <ImportButton />
-      {weeks.length === 0 && <div className="card muted">No history yet. Export your workouts from Hevy and import the CSV above.</div>}
-      {weeks.length > 0 && (
-        <div className="card between">
-          <button className="btn" disabled={idx <= 0} onClick={() => go(weeks[idx - 1])}>‹</button>
-          <div className="center"><b>{label}</b><div className="muted small">{fmtDay(start)} – {fmtDay(end)}</div></div>
-          <button className="btn" disabled={idx >= weeks.length - 1} onClick={() => go(weeks[idx + 1])}>›</button>
-        </div>
-      )}
+      <div className="card between">
+        <button className="btn" aria-label="Previous week" disabled={idx <= 0} onClick={() => go(weeks[idx - 1])}>‹</button>
+        <div className="center"><b>{label}{week === cur ? ' · this week' : ''}</b><div className="muted small">{fmtDay(start)} – {fmtDay(end)}</div></div>
+        <button className="btn" aria-label="Next week" disabled={idx >= weeks.length - 1} onClick={() => go(weeks[idx + 1])}>›</button>
+      </div>
+      {inWeek.length === 0 && <div className="card muted">Nothing imported for this week yet. Export your workouts from Hevy and import the CSV above.</div>}
 
       {!hidden && start < PRE_FIX && inWeek.some((s) => s.source === 'hevy_import') && (
         <div className="card note">Warm-ups before 23 Sep 2026 were logged as normal sets in Hevy, so those weeks may look heavier than they were.
@@ -106,15 +104,19 @@ export default function History() {
         <textarea rows={6} value={text} onChange={(e) => setText(e.target.value)} onBlur={saveRemark} placeholder="Notes for this week…" />
       </div>
 
-      <div className="card">
-        <h3>Hard sets · {inWeek.length} sessions</h3>
-        {MUSCLE_TARGETS.map((t) => {
-          const v = vol[t.muscle] ?? 0;
-          const cls = v >= t.min ? 'ok' : t.note === 'by choice' ? 'neutral' : 'warn';
-          return <div key={t.muscle} className="between small"><span>{t.label}</span><span><span className={`chip ${cls}`}>{fmtNum(v)}</span> <span className="muted">/ {t.min}{t.max ? `–${t.max}` : '+'}{t.note ? ` ${t.note}` : ''}</span></span></div>;
-        })}
-      </div>
-      <button className="btn primary big" onClick={summary}>{copied ? 'Copied ✓' : 'Copy week summary'}</button>
+      {inWeek.length > 0 && (
+        <>
+          <div className="card">
+            <h3>Hard sets · {inWeek.length} sessions</h3>
+            {MUSCLE_TARGETS.map((t) => {
+              const v = vol[t.muscle] ?? 0;
+              const cls = v >= t.min ? 'ok' : t.note === 'by choice' ? 'neutral' : 'warn';
+              return <div key={t.muscle} className="between small"><span>{t.label}</span><span><span className={`chip ${cls}`}>{fmtNum(v)}</span> <span className="muted">/ {t.min}{t.max ? `–${t.max}` : '+'}{t.note ? ` ${t.note}` : ''}</span></span></div>;
+            })}
+          </div>
+          <button className="btn primary big" onClick={summary}>{copied ? 'Copied ✓' : 'Copy week summary'}</button>
+        </>
+      )}
     </>
   );
 }

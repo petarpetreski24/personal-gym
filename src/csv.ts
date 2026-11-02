@@ -47,7 +47,8 @@ export function parseHevy(text: string, blockStart: string, known: Exercise[] = 
   const head = rows.shift()!.map((h) => h.trim());
   const col = (r: string[], name: string) => r[head.indexOf(name)]?.trim() ?? '';
   const byName = new Map<string, string>();
-  for (const e of known) for (const n of e.hevyNames) byName.set(n.toLowerCase(), e.id);
+  // the app's own name also maps, so a custom Hevy exercise named the same way imports correctly
+  for (const e of known) for (const n of [e.name, ...e.hevyNames]) byName.set(n.toLowerCase(), e.id);
   const legacy = new Map<string, { id: string; name: string; type: ExerciseType }>();
   const sessions = new Map<string, Session>();
 
