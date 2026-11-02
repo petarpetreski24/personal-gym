@@ -6,6 +6,7 @@ import Program from './screens/Program.tsx';
 import History from './screens/History.tsx';
 import Exercises from './screens/Exercises.tsx';
 import Settings from './screens/Settings.tsx';
+import DotField from './screens/DotField.tsx';
 
 const TABS = ['Program', 'History', 'Exercises'] as const;
 type Tab = (typeof TABS)[number];
@@ -17,6 +18,7 @@ function Shell() {
   const week = weekNumber(new Date(), stored.blockStart);
   return (
     <>
+      <DotField />
       <header>
         <span>Program [{week >= 1 ? `W${String(week).padStart(2, '0')}` : 'Pre'}]</span>
         <button className="textbtn" onClick={() => setSettings(true)}>Settings</button>
