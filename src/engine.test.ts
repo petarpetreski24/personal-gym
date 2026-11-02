@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { navigableWeeks, pickVariant, stepLoad, targetFor, variantForWeek, weekNumber } from './engine.ts';
+import { dayOfSession, navigableWeeks, pickVariant, sessionName, stepLoad, targetFor, variantForWeek, weekNumber } from './engine.ts';
 import { LIB } from './seed/library.ts';
 import { DEFAULT_EQUIP, SLOT_BY_ID } from './seed/program.ts';
 import { SEED_SESSIONS } from './seed/week1.ts';
@@ -24,6 +24,32 @@ describe('rotation & weeks', () => {
     const slot = SLOT_BY_ID['L3'];
     expect(pickVariant(slot, 3, { ...eq, unavailable: ['lying leg curl'] }, getEx).variant).toBe('A');
     expect(pickVariant(slot, 3, eq, getEx).variant).toBe('C');
+  });
+});
+
+describe('week 1 sessions', () => {
+  it('match the volume Hevy reports', () => {
+    const volume = (s: Session) => s.exercises.flatMap((e) => e.sets).reduce((a, x) => a + (x.weightKg ?? 0) * (x.reps ?? 0), 0);
+    expect(sessions.map(volume)).toEqual([5041, 6082, 3915]);
+  });
+});
+
+describe('session days', () => {
+  const asHevy = (s: Session, title: string): Session => ({ ...s, dayId: undefined, title });
+  it('tells the day from the exercises when the title is a Hevy default', () => {
+    expect(sessions.map((s) => dayOfSession(asHevy(s, 'Evening workout')))).toEqual(['upperA', 'lower', 'upperB']);
+  });
+  it('prefers a title that names the day', () => {
+    expect(dayOfSession(asHevy(sessions[0], 'Lower'))).toBe('lower');
+  });
+  it('makes no guess before the block, or on a tie', () => {
+    expect(dayOfSession({ ...asHevy(sessions[0], 'Push'), weekNumber: 0 })).toBeUndefined();
+    const tied = { ...asHevy(sessions[0], 'Mixed'), exercises: [...sessions[0].exercises.filter((e) => e.exerciseId === 'bench-press-barbell'), ...sessions[1].exercises.filter((e) => e.exerciseId === 'rdl-barbell')] };
+    expect(dayOfSession(tied)).toBeUndefined();
+  });
+  it('names a session without emoji', () => {
+    expect(sessionName(asHevy(sessions[0], 'Evening workout 🏋️'))).toBe('Upper A');
+    expect(sessionName({ ...asHevy(sessions[0], 'Evening workout 🏋️'), exercises: [] })).toBe('Evening workout');
   });
 });
 

@@ -1,5 +1,5 @@
 import type { DayId, Equip, Exercise, Muscle, Session, SessionExercise, SetLog, Slot, Target } from './types.ts';
-import { SLOTS } from './seed/program.ts';
+import { DAYS, SLOTS } from './seed/program.ts';
 
 /* ---------- weeks & rotation ---------- */
 const DAY_MS = 86400000;
@@ -167,12 +167,31 @@ export function navigableWeeks(sessions: Session[], cur: number, ahead = 0) {
 const byStart = (a: Session, b: Session) => a.startedAt.localeCompare(b.startedAt);
 export const finished = (sessions: Session[]) => sessions.filter((s) => s.endedAt).sort(byStart);
 
-/** The program day of a session: its dayId, or read from a Hevy title such as "Upper A". */
+/**
+ * The program day of a session: its dayId, a Hevy title such as "Upper A", or, since Hevy's default
+ * titles ("Evening workout") don't say, the day whose fixed exercises it did most of.
+ */
 export function dayOfSession(s: Session): DayId | undefined {
   if (s.dayId) return s.dayId;
   const upper = s.title.match(/\bupper\s*([abc])\b/i);
   if (upper) return `upper${upper[1].toUpperCase()}` as DayId;
-  return /\blower\b/i.test(s.title) ? 'lower' : undefined;
+  if (/\blower\b/i.test(s.title)) return 'lower';
+  return s.weekNumber >= 1 ? dayFromExercises(s) : undefined; // before the block, sessions followed a different program
+}
+function dayFromExercises(s: Session): DayId | undefined {
+  const counts = new Map<DayId, number>();
+  for (const slot of SLOTS) {
+    if (slot.kind === 'fixed' && s.exercises.some((e) => e.exerciseId === slot.exerciseId && workingSets(e.sets).length)) {
+      counts.set(slot.dayId, (counts.get(slot.dayId) ?? 0) + 1);
+    }
+  }
+  const [top, next] = [...counts].sort((a, b) => b[1] - a[1]);
+  return top && top[1] !== next?.[1] ? top[0] : undefined;
+}
+/** What to call a session: its program day, or its Hevy title without the emoji. */
+export function sessionName(s: Session) {
+  const day = dayOfSession(s);
+  return DAYS.find((d) => d.id === day)?.name ?? s.title.replace(/[\p{Extended_Pictographic}️‍]/gu, '').trim();
 }
 const slotUses = (slot: Slot, exerciseId: string) => slot.exerciseId === exerciseId || Object.values(slot.variants ?? {}).includes(exerciseId);
 /** A session that can hold this slot's work: the slot's own day, or a day that can't be told. */

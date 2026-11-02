@@ -3,7 +3,7 @@ import { useData } from '../store.tsx';
 import { db, getEx } from '../db.ts';
 import { DAYS, DAY_INFO, SLOTS } from '../seed/program.ts';
 import { fmtDate, fmtDay, fmtNum, fmtSets, mmss } from '../util.ts';
-import { dayOfSession, entriesFor, finished, navigableWeeks, offPlanEntries, onSlotDay, reviewExercise, targetFor, variantForWeek, weekNumber, weekRange, workingSets } from '../engine.ts';
+import { dayOfSession, entriesFor, finished, navigableWeeks, offPlanEntries, onSlotDay, reviewExercise, sessionName, targetFor, variantForWeek, weekNumber, weekRange, workingSets } from '../engine.ts';
 import { LETTERS, autoVariant, plannedVariant, rotatingSlots } from '../rotation.ts';
 import type { Slot } from '../types.ts';
 
@@ -226,9 +226,9 @@ function ExerciseInfo({ slot, exerciseId, week, letter, planned, locked }: { slo
           <div className="kv">
             <span className="muted">Previous</span>
             <div>
-              {prev ? <>{fmtDate(prev.session.startedAt)}, {prev.session.title} · {fmtSets(prev.entry.sets)} {review && <span className={`chip tiny ${review.tone}`}>{review.status}</span>}</> : <span className="muted">Not done yet</span>}
+              {prev ? <>{fmtDate(prev.session.startedAt)}, {sessionName(prev.session)} · {fmtSets(prev.entry.sets)} {review && <span className={`chip tiny ${review.tone}`}>{review.status}</span>}</> : <span className="muted">Not done yet</span>}
               {prev?.entry.note && <div className="muted small">{prev.entry.note}</div>}
-              {alsoDone && <div className="muted small">Also {fmtDate(alsoDone.session.startedAt)}, {alsoDone.session.title} (off plan, not counted) · {fmtSets(alsoDone.entry.sets)}</div>}
+              {alsoDone && <div className="muted small">Also {fmtDate(alsoDone.session.startedAt)}, {sessionName(alsoDone.session)} (off plan, not counted) · {fmtSets(alsoDone.entry.sets)}</div>}
             </div>
           </div>
         </>

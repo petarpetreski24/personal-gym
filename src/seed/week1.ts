@@ -11,30 +11,31 @@ function sets(...s: ([number | null, number] | ['W', number, number])[]): SetLog
 const ex = (exerciseId: string, slotId: string | undefined, s: SetLog[], extra?: Partial<SessionExercise>): SessionExercise =>
   ({ exerciseId, slotId, sets: s, ...(slotId ? {} : { extra: true }), ...extra });
 
-const mk = (id: string, dayId: Session['dayId'], title: string, start: string, mins: number, exercises: SessionExercise[]): Session => ({
-  id, dayId, title, weekNumber: 1, source: 'seed', startedAt: new Date(start).toISOString(),
+// same id and source as a Hevy import of the same start time, so a later CSV merges instead of duplicating
+const mk = (dayId: Session['dayId'], title: string, start: string, mins: number, exercises: SessionExercise[]): Session => ({
+  id: `hevy:${start.slice(0, 16)}`, dayId, title, weekNumber: 1, source: 'hevy_import', startedAt: new Date(start).toISOString(),
   endedAt: new Date(new Date(start).getTime() + mins * 60000).toISOString(), exercises,
 });
 
 export const SEED_SESSIONS: Session[] = [
-  mk('seed-w1-upperA', 'upperA', 'Upper A', '2026-10-26T18:30:00', 50, [
-    ex('bench-press-barbell', 'A1', sets([50, 8], [52.5, 8], [52.5, 8])),
+  mk('upperA', 'Upper A', '2026-10-26T18:30:00', 50, [ // the day and time are approximate
     ex('lat-pulldown', 'A2', sets(['W', 32, 10], [50, 8], [50, 8], [50, 8])),
+    ex('bench-press-barbell', 'A1', sets([50, 8], [52.5, 8], [52.5, 8])),
     ex('seated-cable-row-v', 'A3', sets([52, 8], [52, 10], [52, 10])),
     ex('db-lateral-raise', 'A4a', sets([5, 15], [5, 15], [5, 15])),
     ex('overhead-cable-triceps-ext', 'A4b', sets([25, 8], [25, 8], [20, 10])),
   ]),
-  mk('seed-w1-lower', 'lower', 'Lower', '2026-10-28T19:12:00', 68, [
-    ex('rdl-barbell', 'L1', sets([53, 8], [53, 8], [53, 8])),
+  mk('lower', 'Lower', '2026-10-28T19:12:00', 68, [
     ex('leg-press-horizontal', 'L2', sets([75, 10], [85, 12], [95, 8])),
+    ex('rdl-barbell', 'L1', sets([53, 8], [53, 8], [53, 8])),
     ex('seated-leg-curl', 'L3', sets([40, 10], [50, 10], [55, 6])),
-    ex('standing-calf-raise', 'L4a', sets([null, 15], [null, 20], [null, 20])),
     ex('single-arm-cable-lateral', 'L5a', sets([5, 10], [5, 10], [5, 10])),
-    ex('rope-pushdown', undefined, sets([20, 15])),
+    ex('standing-calf-raise', 'L4a', sets([null, 15], [null, 20], [null, 20])),
+    ex('rope-pushdown', undefined, sets([20, 15], [20, 15], [20, 15])),
   ]),
-  mk('seed-w1-upperB', 'upperB', 'Upper B', '2026-10-30T18:03:00', 59, [
-    ex('overhead-press-barbell', 'B1', sets([30, 8], [30, 8], [30, 8])),
+  mk('upperB', 'Upper B', '2026-10-30T18:03:00', 59, [
     ex('incline-db-press', 'B2', sets(['W', 12.5, 10], [20, 8], [20, 6], [20, 8])),
+    ex('overhead-press-barbell', 'B1', sets([30, 8], [30, 8], [30, 8])),
     ex('seated-cable-row-v', undefined, sets([45, 10], [52, 10], [52, 10])),
     ex('legacy-butterfly-pec-deck', undefined, sets([35, 8], [35, 8], [35, 8]), { note: 'Shoulder burn, not chest. Replaced by cable fly rotation' }),
     ex('db-curl', 'B5a', sets([10, 10], [10, 11], [10, 9])),

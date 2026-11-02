@@ -2,7 +2,7 @@ import Dexie, { type Table } from 'dexie';
 import type { Exercise, ExerciseNote, RotationOverride, Session, Settings, WeekRemark } from './types.ts';
 import { LIB } from './seed/library.ts';
 import { DEFAULT_BLOCK_START, DEFAULT_EQUIP } from './seed/program.ts';
-import { SEED_NOTES, SEED_REMARKS } from './seed/week1.ts';
+import { SEED_LEGACY, SEED_NOTES, SEED_REMARKS, SEED_SESSIONS } from './seed/week1.ts';
 import { normalizeSessions, planImport, type HevyResult, type ImportPlan } from './csv.ts';
 import { mondayOf, parseDate } from './engine.ts';
 
@@ -85,6 +85,18 @@ async function normalizeData() {
   await db.transaction('rw', db.sessions, async () => { await db.sessions.clear(); await db.sessions.bulkPut(after); });
 }
 
+/** Adds week 1 once, so removing a session later sticks. Days an import already covers are left alone. */
+async function addWeek1() {
+  if (await db.kv.get('week1')) return;
+  await db.transaction('rw', db.sessions, db.legacy, db.kv, async () => {
+    const day = (s: Session) => new Date(s.startedAt).toDateString();
+    const have = new Set((await db.sessions.toArray()).map(day));
+    await db.legacy.bulkPut(SEED_LEGACY);
+    await db.sessions.bulkPut(SEED_SESSIONS.filter((s) => !have.has(day(s))));
+    await db.kv.put({ key: 'week1', value: true });
+  });
+}
+
 export async function seedIfEmpty() {
   if (!(await db.kv.get('seeded'))) {
     await db.transaction('rw', db.tables, async () => {
@@ -94,6 +106,7 @@ export async function seedIfEmpty() {
     });
     for (const h of Object.values(hevySeed)) await addImported(h);
   }
+  await addWeek1();
   await normalizeData();
   setLegacy(await db.legacy.toArray());
 }

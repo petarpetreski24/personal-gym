@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useData } from '../store.tsx';
 import { addImported, removeSessions } from '../db.ts';
 import { parseHevy } from '../csv.ts';
+import { sessionName } from '../engine.ts';
 import { fmtDate } from '../util.ts';
 
 export default function ImportButton() {
@@ -18,7 +19,7 @@ export default function ImportButton() {
       if (plan.update.length) parts.push(`${plan.update.length} updated from Hevy`);
       if (plan.keptEdited) parts.push(`${plan.keptEdited} changed in Hevy but kept, because you edited them here`);
       if (plan.missing.length) {
-        const list = plan.missing.map((s) => `${fmtDate(s.startedAt)} ${s.title}`).join('\n');
+        const list = plan.missing.map((s) => `${fmtDate(s.startedAt)} ${sessionName(s)}`).join('\n');
         if (confirm(`These sessions are no longer in your Hevy export (deleted or re-timed there):\n\n${list}\n\nRemove them from the app?`)) {
           await removeSessions(plan.missing.map((s) => s.id));
           parts.push(`${plan.missing.length} removed`);

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useData } from '../store.tsx';
 import { db, getEx } from '../db.ts';
 import { MUSCLE_TARGETS } from '../seed/program.ts';
-import { finished, navigableWeeks, sessionFlags, sessionMinutes, weekNumber, weekRange, weeklyReview, weeklyVolume, workingSets } from '../engine.ts';
+import { finished, navigableWeeks, sessionFlags, sessionMinutes, sessionName, weekNumber, weekRange, weeklyReview, weeklyVolume, workingSets } from '../engine.ts';
 import { fmtDay, fmtNum, fmtSets, parseNum } from '../util.ts';
 import type { Session } from '../types.ts';
 import ImportButton from './ImportButton.tsx';
@@ -42,7 +42,7 @@ export default function History() {
   const summary = () => {
     const lines = [`${label} (${fmtDay(start)}–${fmtDay(end)}): ${inWeek.length} sessions`];
     inWeek.forEach((s) => {
-      lines.push('', `${s.title} – ${fmtDay(new Date(s.startedAt))}, ${Math.round(sessionMinutes(s))} min${s.remark ? ` – ${s.remark}` : ''}`);
+      lines.push('', `${sessionName(s)} – ${fmtDay(new Date(s.startedAt))}, ${Math.round(sessionMinutes(s))} min${s.remark ? ` – ${s.remark}` : ''}`);
       s.exercises.forEach((e) => { if (workingSets(e.sets).length) lines.push(`- ${getEx(e.exerciseId).name}: ${fmtSets(e.sets)}`); });
     });
     lines.push('', 'Review:');
@@ -69,7 +69,7 @@ export default function History() {
 
       {inWeek.map((s) => (
         <details key={s.id} className="card">
-          <summary><b>{s.title}</b> · {fmtDay(new Date(s.startedAt))} · {Math.round(sessionMinutes(s))} min</summary>
+          <summary><b>{sessionName(s)}</b> · {fmtDay(new Date(s.startedAt))} · {Math.round(sessionMinutes(s))} min</summary>
           {s.edited && <p className="muted small">Edited here. Re-importing from Hevy won't overwrite this session.</p>}
           {s.remark && <p><em>{s.remark}</em></p>}
           {sessionFlags(s, getEx).map((f) => <div key={f} className="chip warn block">{f}</div>)}
