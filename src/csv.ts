@@ -120,16 +120,29 @@ const guessType = (t: string): ExerciseType =>
 
 export interface HevyResult { sessions: Session[]; legacy: { id: string; name: string; type: ExerciseType }[] }
 
+/** Maps Hevy exercise names to library ids. Names it doesn't know become legacy exercises. */
+export function exerciseResolver(known: Exercise[] = LIBRARY) {
+  const byName = new Map<string, string>();
+  // the app's own name also maps, so a custom Hevy exercise named the same way imports correctly
+  for (const e of known) for (const n of [e.name, ...e.hevyNames]) byName.set(n.toLowerCase(), e.id);
+  const legacy = new Map<string, { id: string; name: string; type: ExerciseType }>();
+  const idFor = (name: string) => {
+    const id = byName.get(name.toLowerCase());
+    if (id) return id;
+    const made = `legacy-${slug(name)}`;
+    if (!legacy.has(made)) legacy.set(made, { id: made, name, type: guessType(name) });
+    return made;
+  };
+  return { idFor, legacy };
+}
+
 export function parseHevy(text: string, blockStart: string, known: Exercise[] = LIBRARY): HevyResult {
   const rows = parseCsv(text);
   const head = (rows.shift() ?? []).map((h) => h.trim());
   const absent = ['title', 'start_time', 'exercise_title', 'set_type', 'weight_kg', 'reps'].filter((c) => !head.includes(c));
   if (absent.length) throw new Error(`Not a Hevy export (missing ${absent.join(', ')})`);
   const col = (r: string[], name: string) => r[head.indexOf(name)]?.trim() ?? '';
-  const byName = new Map<string, string>();
-  // the app's own name also maps, so a custom Hevy exercise named the same way imports correctly
-  for (const e of known) for (const n of [e.name, ...e.hevyNames]) byName.set(n.toLowerCase(), e.id);
-  const legacy = new Map<string, { id: string; name: string; type: ExerciseType }>();
+  const { idFor, legacy } = exerciseResolver(known);
   const sessions = new Map<string, Session>();
 
   for (const r of rows) {
@@ -142,12 +155,7 @@ export function parseHevy(text: string, blockStart: string, known: Exercise[] = 
       s = { id: key, title, weekNumber: weekNumber(new Date(startedAt), blockStart), startedAt, endedAt: end ? parseHevyDate(end) : startedAt, source: 'hevy_import', remark: col(r, 'description') || undefined, exercises: [] };
       sessions.set(key, s);
     }
-    const name = col(r, 'exercise_title');
-    let id = byName.get(name.toLowerCase());
-    if (!id) {
-      id = `legacy-${slug(name)}`;
-      if (!legacy.has(id)) legacy.set(id, { id, name, type: guessType(name) });
-    }
+    const id = idFor(col(r, 'exercise_title'));
     let se: SessionExercise | undefined = s.exercises.find((e) => e.exerciseId === id);
     if (!se) {
       se = { exerciseId: id, sets: [], note: col(r, 'exercise_notes') || undefined };

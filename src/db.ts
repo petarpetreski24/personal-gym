@@ -4,6 +4,7 @@ import { LIB } from './seed/library.ts';
 import { DEFAULT_BLOCK_START, DEFAULT_EQUIP } from './seed/program.ts';
 import { SEED_LEGACY, SEED_NOTES, SEED_REMARKS, SEED_SESSIONS } from './seed/week1.ts';
 import { normalizeSessions, planImport, type HevyResult, type ImportPlan } from './csv.ts';
+import { replacedBy } from './hevyText.ts';
 import { mondayOf, parseDate } from './engine.ts';
 
 export interface LegacyRow { id: string; name: string; type: 'compound' | 'isolation' }
@@ -77,6 +78,12 @@ export async function addImported(res: HevyResult): Promise<ImportPlan> {
   return plan;
 }
 export const removeSessions = (ids: string[]) => db.sessions.bulkDelete(ids);
+export async function addPasted(res: HevyResult) {
+  const replaced = replacedBy(await db.sessions.toArray(), res.sessions);
+  const plan = await addImported(res);
+  await removeSessions(replaced.map((s) => s.id));
+  return { plan, replaced: replaced.length };
+}
 
 async function normalizeData() {
   const before = await db.sessions.toArray();

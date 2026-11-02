@@ -15,7 +15,9 @@ npm run build    # static site in dist/
 
 ## Weekly routine
 
-Hevy → Settings → Export workout data (CSV) → open the app → History → **Import Hevy CSV**. Always import the full export. A session is identified by its start time, so re-importing brings in renames and edits made in Hevy. Sets you corrected in the app are kept, and sessions no longer in the export are removed only after you confirm.
+Quickest: copy the week's workouts as text from Hevy → open the app → History → **Paste from Hevy**, check the dates, add them. The text doesn't mark warm-ups, so opening sets at 70% or less of the exercise's heaviest count as warm-ups; the preview lists them.
+
+Or: Hevy → Settings → Export workout data (CSV) → open the app → History → **Import Hevy CSV**. Always import the full export. A session is identified by its start time, so re-importing brings in renames and edits made in Hevy. Sets you corrected in the app are kept, and sessions no longer in the export are removed only after you confirm.
 
 ## Deploy (GitHub Pages)
 

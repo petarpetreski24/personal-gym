@@ -60,7 +60,7 @@ export default function History() {
         <div className="center"><b>{label}{week === cur ? ' · this week' : ''}</b><div className="muted small">{fmtDay(start)} – {fmtDay(end)}</div></div>
         <button className="btn" aria-label="Next week" disabled={idx >= weeks.length - 1} onClick={() => go(weeks[idx + 1])}>&gt;</button>
       </div>
-      {inWeek.length === 0 && <div className="card muted">Nothing imported for this week yet. Export your workouts from Hevy and import the CSV above.</div>}
+      {inWeek.length === 0 && <div className="card muted">Nothing imported for this week yet. Paste your workouts from Hevy, or import its CSV, above.</div>}
 
       {!hidden && start < PRE_FIX && inWeek.some((s) => s.source === 'hevy_import') && (
         <div className="card note">Warm-ups before 23 Sep 2026 were logged as normal sets in Hevy, so those weeks may look heavier than they were.
