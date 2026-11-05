@@ -2,7 +2,7 @@
 
 Minimal mobile PWA to look over my Upper A / Lower / Upper B program, choose the rotating exercises each week, and review history. Workouts are logged in Hevy; each week I import the Hevy CSV export here. No backend: data lives on the device (Settings → Export JSON to back up).
 
-- **Program** – opens on this week, with earlier weeks one tap back. Each split shows suggested and previous weight, reps, RPE and rest per exercise. Rotating slots list their options; lock one for the week, then enter that workout in Hevy. Also a rotation calendar (next 6 weeks) and rotation history (what was actually done each week).
+- **Program** – opens on this week, with earlier weeks one tap back. Each split shows suggested and previous weight, reps, RPE and rest per exercise. Rotating exercises are assigned: week A and week B alternate, with the pairings chosen in `src/seed/program.ts`. Also a rotation calendar (next 8 weeks) and rotation history (what was actually done each week).
 - **History** – this week plus earlier weeks with imported data (never future weeks): sessions, auto review with next target, week remarks, hard sets per muscle, "Copy week summary".
 - **Exercises** – library with how-to, notes, PRs and e1RM chart.
 

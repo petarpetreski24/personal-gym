@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Exercise, ExerciseNote, RotationOverride, Session, Settings, WeekRemark } from './types.ts';
+import type { Exercise, ExerciseNote, Session, Settings, WeekRemark } from './types.ts';
 import { LIB } from './seed/library.ts';
 import { DEFAULT_BLOCK_START, DEFAULT_EQUIP } from './seed/program.ts';
 import { SEED_LEGACY, SEED_NOTES, SEED_REMARKS, SEED_SESSIONS } from './seed/week1.ts';
@@ -13,7 +13,6 @@ class GymDB extends Dexie {
   sessions!: Table<Session, string>;
   weekRemarks!: Table<WeekRemark, number>;
   exerciseNotes!: Table<ExerciseNote, string>;
-  rotation!: Table<RotationOverride, string>;
   kv!: Table<{ key: string; value: unknown }, string>;
   legacy!: Table<LegacyRow, string>;
   constructor() {
@@ -27,6 +26,7 @@ class GymDB extends Dexie {
       legacy: 'id',
     });
     this.version(2).stores({ overrides: null, rotation: 'id' });
+    this.version(3).stores({ rotation: null });
   }
 }
 export const db = new GymDB();
@@ -51,17 +51,14 @@ export async function getSettings(): Promise<Settings> {
 }
 export const saveSettings = (s: Settings) => db.kv.put({ key: 'settings', value: s });
 
-/** Remarks and locks are keyed by week number, so they move with the block start and stay on their calendar week. */
+/** Remarks are keyed by week number, so they move with the block start and stay on their calendar week. */
 export async function saveBlockStart(s: Settings, blockStart: string) {
   const delta = Math.round((mondayOf(parseDate(s.blockStart)).getTime() - mondayOf(parseDate(blockStart)).getTime()) / (7 * 86400000));
-  await db.transaction('rw', db.kv, db.weekRemarks, db.rotation, async () => {
+  await db.transaction('rw', db.kv, db.weekRemarks, async () => {
     if (delta) {
       const remarks = await db.weekRemarks.toArray();
-      const locks = await db.rotation.toArray();
       await db.weekRemarks.clear();
-      await db.rotation.clear();
       await db.weekRemarks.bulkPut(remarks.map((r) => ({ ...r, weekNumber: r.weekNumber + delta })));
-      await db.rotation.bulkPut(locks.map((r) => ({ ...r, weekNumber: r.weekNumber + delta, id: `${r.weekNumber + delta}:${r.slotId}` })));
     }
     await saveSettings({ ...s, blockStart });
   });

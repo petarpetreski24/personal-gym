@@ -1,5 +1,5 @@
 import type { DayId, Equip, Exercise, Muscle, Session, SessionExercise, SetLog, Slot, Target } from './types.ts';
-import { DAYS, SLOTS } from './seed/program.ts';
+import { DAYS, PLAN_FROM, SLOTS } from './seed/program.ts';
 
 /* ---------- weeks & rotation ---------- */
 const DAY_MS = 86400000;
@@ -19,19 +19,24 @@ export function weekRange(week: number, blockStart: string) {
   const end = new Date(start); end.setDate(end.getDate() + 6);
   return { start, end };
 }
-export type Variant = 'A' | 'B' | 'C';
-export const variantForWeek = (week: number): Variant => (week <= 0 ? 'A' : (['A', 'B', 'C'] as const)[(week - 1) % 3]);
+export type Variant = 'A' | 'B';
+export const variantForWeek = (week: number): Variant => (week <= 0 ? 'A' : (['A', 'B'] as const)[(week - 1) % 2]);
 
-/** This week's variant for a rotating slot, skipping variants whose equipment is unavailable. */
+const usable = (ex: Exercise, equip: Equip) =>
+  (!ex.equipment || !equip.unavailable.includes(ex.equipment)) && (!ex.needs || equip.found.includes(ex.needs));
+
+/** This week's variant for a rotating slot, falling back to the other if its equipment can't be used. */
 export function pickVariant(slot: Slot, week: number, equip: Equip, getEx: (id: string) => Exercise) {
   const v = variantForWeek(week);
-  for (const c of [v, 'A', 'B'] as Variant[]) {
+  for (const c of [v, v === 'A' ? 'B' : 'A'] as Variant[]) {
     const id = slot.variants![c];
-    const eq = getEx(id).equipment;
-    if (!eq || !equip.unavailable.includes(eq)) return { variant: c, exerciseId: id };
+    if (usable(getEx(id), equip)) return { variant: c, exerciseId: id };
   }
   return { variant: v, exerciseId: slot.variants![v] };
 }
+
+/** A slot with the sets and reps of the exercise being done in it. */
+export const doseFor = (slot: Slot, exerciseId: string): Slot => ({ ...slot, ...slot.doses?.[exerciseId] });
 
 /* ---------- helpers ---------- */
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -86,7 +91,7 @@ export function nextTarget({ ex, slot, history, equip }: TargetInput): Target {
   const hist = history.map(workingSets).filter((h) => h.length);
   const mid = Math.round((repMin + repMax) / 2);
   if (!hist.length) {
-    return { weightKg: null, repGoals: Array(n).fill(mid), flags: ['calibrate'], reason: `First time: pick a load you can do about ${mid} reps` };
+    return { weightKg: null, repGoals: Array(n).fill(mid), flags: ['calibrate'], reason: ex.loadType === 'bodyweight' ? `First time: aim for about ${mid} reps` : `First time: pick a load you can do about ${mid} reps` };
   }
   const last = hist[0];
   const flags: string[] = [];
@@ -236,7 +241,7 @@ export function slotFor(se: SessionExercise, getEx: (id: string) => Exercise, se
   const uses = SLOTS.filter((s) => slotUses(s, se.exerciseId));
   const day = session && dayOfSession(session);
   const slot = byId ?? uses.find((s) => s.dayId === day) ?? uses[0];
-  if (slot) return slot;
+  if (slot) return doseFor(slot, se.exerciseId);
   const iso = getEx(se.exerciseId).type === 'isolation';
   return { sets: 3, repMin: iso ? 10 : 8, repMax: iso ? 15 : 12 };
 }
@@ -311,7 +316,7 @@ export function sessionFlags(s: Session, getEx: (id: string) => Exercise): strin
   }
   const day = dayOfSession(s);
   const worked = s.exercises.filter((e) => workingSets(e.sets).length);
-  if (day && s.weekNumber >= 1) { // before the block, sessions followed a different program
+  if (day && new Date(s.startedAt) >= PLAN_FROM) { // earlier sessions followed a different program
     for (const slot of SLOTS.filter((x) => x.dayId === day)) {
       if (!worked.some((e) => slotUses(slot, e.exerciseId))) out.push(`Skipped: ${slot.label}`);
     }

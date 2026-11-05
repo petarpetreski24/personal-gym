@@ -42,7 +42,7 @@ ul li::before { content: '[/] '; white-space: pre; }
 .block { display: flex; width: 100%; }
 
 /* controls: bracketed text */
-.btn, .navbtn, .textbtn { border: 0; background: none; color: var(--text); font: inherit; text-transform: inherit; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0; }
+.btn, .textbtn { border: 0; background: none; color: var(--text); font: inherit; text-transform: inherit; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0; }
 .btn::before, .textbtn::before { content: '['; } .btn::after, .textbtn::after { content: ']'; }
 .btn.block, .btn.big { justify-content: flex-start; }
 .btn.big { width: 100%; }
@@ -89,21 +89,10 @@ details > .daysum::before { display: none; }
 .exname .nm { flex: 1; min-width: 0; }
 .exname.muted { color: var(--muted); }
 .mark, .fold { color: var(--muted); flex-shrink: 0; }
-.carousel { display: grid; grid-template-columns: 36px minmax(0, 1fr) 36px 56px; gap: 2px; align-items: center; }
-.carousel.locked { grid-template-columns: minmax(0, 1fr) 72px; }
-.carousel .navbtn { min-width: 36px; }
-.carname { min-width: 0; text-align: center; padding: 4px 0; }
-.carname .exname { justify-content: center; min-height: 28px; padding: 2px 0; text-align: center; }
-.carousel.locked .carname { text-align: left; padding: 0; }
-.carousel.locked .carname .exname { justify-content: flex-start; min-height: 44px; padding: 13px 0; text-align: left; }
-.lockbtn { justify-content: flex-end; white-space: nowrap; }
-.dots { display: flex; justify-content: center; gap: 8px; font-size: 11px; color: var(--muted); }
-.dot.on { color: var(--text); }
-.dot.on::before { content: '['; } .dot.on::after { content: ']'; }
-.dot.plan { text-decoration: underline; text-underline-offset: 2px; }
 .einfo { margin: 0 0 8px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 12px; }
 .kv { display: grid; grid-template-columns: 88px 1fr; gap: 8px; margin-top: 8px; }
 .prow { padding: 4px 0; }
+.calday { padding-bottom: 8px; }
 
 /* history and lists */
 .rev { padding: 8px 0; }

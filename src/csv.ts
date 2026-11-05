@@ -60,6 +60,8 @@ export function migrateSessionId(id: string): string {
 }
 
 const finite = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+/** Exercises that became one: seated and standing lateral raises are now logged as the same exercise. */
+const MERGED: Record<string, string> = { 'seated-db-lateral-raise': 'db-lateral-raise' };
 /**
  * Brings saved sessions to the current shape; safe to run on every start and after a restore.
  * Migrates old ids, merges the duplicates old ids allowed, clears non-numeric values, and drops
@@ -74,6 +76,7 @@ export function normalizeSessions(sessions: Session[]): Session[] {
       id: migrateSessionId(s.id),
       exercises: s.exercises.map((e) => ({
         ...e,
+        exerciseId: MERGED[e.exerciseId] ?? e.exerciseId,
         sets: e.sets.map((x) => {
           const { rpe, ...set } = x;
           const r = finite(rpe);

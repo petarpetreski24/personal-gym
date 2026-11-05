@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useData } from '../store.tsx';
 import { db, getEx } from '../db.ts';
 import { LIBRARY } from '../seed/library.ts';
-import { SLOTS } from '../seed/program.ts';
+import { PLANNED_IDS, SLOTS } from '../seed/program.ts';
 import { bestE1rm, entriesFor, inverted, workingSets, e1rm } from '../engine.ts';
 import { MUSCLE_NAME, fmtDate, fmtNum, fmtSets } from '../util.ts';
 import { SeriesChart, seriesFor } from './Charts.tsx';
@@ -15,7 +15,8 @@ export default function Exercises() {
   if (open) return <Detail id={open} back={() => setOpen(null)} />;
 
   const used = new Set(sessions.flatMap((s) => s.exercises.map((e) => e.exerciseId)));
-  const all: Exercise[] = [...LIBRARY, ...[...used].filter((id) => id.startsWith('legacy-')).map(getEx)];
+  // exercises dropped from the plan stay listed only if they have history
+  const all: Exercise[] = [...LIBRARY.filter((e) => PLANNED_IDS.has(e.id) || used.has(e.id)), ...[...used].filter((id) => id.startsWith('legacy-')).map(getEx)];
   const list = all.filter((e) => e.name.toLowerCase().includes(q.toLowerCase()));
   const groups = new Map<string, Exercise[]>();
   list.forEach((e) => { const g = e.legacy ? 'Legacy' : MUSCLE_NAME(e.primary[0]); groups.set(g, [...(groups.get(g) ?? []), e]); });
@@ -29,7 +30,7 @@ export default function Exercises() {
           {es.map((e) => (
             <button key={e.id} className="listbtn" onClick={() => setOpen(e.id)}>
               <span>{e.name}</span>
-              <span>{!e.legacy && <span className="chip tiny">{SLOTS.some((s) => s.exerciseId === e.id) ? 'Fixed' : 'Rotates'}</span>}<span className="chip tiny">{e.type === 'compound' ? 'C' : 'I'}</span></span>
+              <span>{!e.legacy && <span className="chip tiny">{!PLANNED_IDS.has(e.id) ? 'Past' : SLOTS.some((s) => s.exerciseId === e.id) ? 'Fixed' : 'Rotates'}</span>}<span className="chip tiny">{e.type === 'compound' ? 'C' : 'I'}</span></span>
             </button>
           ))}
         </div>

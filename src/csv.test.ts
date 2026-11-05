@@ -114,9 +114,19 @@ describe('sessions matched to the program', () => {
     expect(onSlotDay(one('Evening lift', 'Triceps Pushdown'), SLOT_BY_ID['B5b'])).toBe(true);
   });
   it('flags extra exercises and skipped slots on imported sessions', () => {
-    const flags = sessionFlags(one('Lower', 'Triceps Pushdown'), getEx);
+    const flags = sessionFlags({ ...one('Lower', 'Triceps Pushdown'), startedAt: new Date(2026, 10, 11, 18).toISOString() }, getEx);
     expect(flags).toContain('Extra exercise: Triceps Pushdown (Rope)');
     expect(flags).toContain('Skipped: Hip hinge');
+  });
+  it('does not judge sessions from before this plan against it', () => {
+    expect(sessionFlags(one('Lower', 'Triceps Pushdown'), getEx).filter((f) => /Skipped|Extra/.test(f))).toEqual([]);
+  });
+  it('merges seated lateral raises into the one lateral raise, keeping the sets', () => {
+    expect(parseHevy(csv(row('Upper A', 26, 'Seated Lateral Raise (Dumbbell)', 'normal', 5, 15)), '2026-10-26').sessions[0].exercises[0].exerciseId).toBe('db-lateral-raise');
+    const saved = one('Upper A', 'Lateral Raise (Dumbbell)');
+    saved.exercises[0].exerciseId = 'seated-db-lateral-raise';
+    const [e] = normalizeSessions([saved])[0].exercises;
+    expect([e.exerciseId, e.sets[0].weightKg]).toEqual(['db-lateral-raise', 20]);
   });
   it('uses the slot of the session\'s own day when an exercise is in several', () => {
     const se = { exerciseId: 'rope-pushdown', sets: [] };

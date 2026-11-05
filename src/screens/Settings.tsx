@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { useData } from '../store.tsx';
 import { exportAll, importAll, resetAll, saveBlockStart, saveSettings } from '../db.ts';
 import { LIBRARY } from '../seed/library.ts';
+import { PLANNED_IDS } from '../seed/program.ts';
 import ImportButton from './ImportButton.tsx';
 import { download, parseNum } from '../util.ts';
 
-const EQUIPMENT = [...new Set(LIBRARY.map((e) => e.equipment).filter(Boolean))] as string[];
+const PLANNED = LIBRARY.filter((e) => PLANNED_IDS.has(e.id));
+const EQUIPMENT = [...new Set(PLANNED.map((e) => e.equipment).filter(Boolean))] as string[];
+const OPTIONAL = [...new Set(PLANNED.map((e) => e.needs).filter(Boolean))] as string[];
 
 export default function Settings({ back }: { back: () => void }) {
   const { settings } = useData();
@@ -42,6 +45,13 @@ export default function Settings({ back }: { back: () => void }) {
           <label key={q} className="check">
             <input type="checkbox" checked={eq.unavailable.includes(q)}
               onChange={(e) => saveEq({ unavailable: e.target.checked ? [...eq.unavailable, q] : eq.unavailable.filter((x) => x !== q) })} /> {q}
+          </label>
+        ))}
+        <p className="muted small">Optional equipment I've found (adds its exercise to the rotation):</p>
+        {OPTIONAL.map((q) => (
+          <label key={q} className="check">
+            <input type="checkbox" checked={eq.found.includes(q)}
+              onChange={(e) => saveEq({ found: e.target.checked ? [...eq.found, q] : eq.found.filter((x) => x !== q) })} /> {q}
           </label>
         ))}
       </div>

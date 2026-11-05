@@ -15,7 +15,8 @@ export interface Exercise {
   description: string;
   cues: string[];
   mistakes?: string[];
-  equipment?: string;
+  equipment?: string; // usable unless marked unavailable
+  needs?: string; // optional kit: not usable until marked as found
   legacy?: boolean;
 }
 
@@ -33,7 +34,8 @@ export interface Slot {
   rpeTarget: [number, number];
   kind: 'fixed' | 'rotating';
   exerciseId?: string;
-  variants?: { A: string; B: string; C: string };
+  variants?: { A: string; B: string };
+  doses?: Record<string, Pick<Slot, 'sets' | 'repMin' | 'repMax'>>; // an exercise that needs a different dose from the slot's
   lockedLoadKg?: number;
   lowerBody?: boolean;
 }
@@ -69,17 +71,13 @@ export interface Session {
 
 export interface WeekRemark { weekNumber: number; text: string; }
 export interface ExerciseNote { exerciseId: string; text: string; }
-/** Exercise locked in for one rotating slot in one week. id = `${weekNumber}:${slotId}` */
-export interface RotationOverride {
-  id: string; weekNumber: number; slotId: string; variant: 'A' | 'B' | 'C';
-  exerciseId?: string; // the exercise itself, so a lock survives later changes to a slot's variants
-}
 
 export interface Equip {
   dumbbells: number[];
   cableStep: number;
   barStep: number;
   unavailable: string[];
+  found: string[];
 }
 export interface Settings { blockStart: string; equip: Equip; }
 

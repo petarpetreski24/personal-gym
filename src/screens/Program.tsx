@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { useData } from '../store.tsx';
-import { db, getEx } from '../db.ts';
-import { DAYS, DAY_INFO, SLOTS } from '../seed/program.ts';
+import { getEx } from '../db.ts';
+import { DAYS, DAY_INFO, PLAN_FROM, SLOTS } from '../seed/program.ts';
 import { fmtDate, fmtDay, fmtNum, fmtSets, mmss } from '../util.ts';
-import { dayOfSession, entriesFor, finished, navigableWeeks, offPlanEntries, onSlotDay, reviewExercise, sessionName, targetFor, variantForWeek, weekNumber, weekRange, workingSets } from '../engine.ts';
-import { LETTERS, autoVariant, plannedVariant, rotatingSlots } from '../rotation.ts';
+import { dayOfSession, doseFor, entriesFor, finished, navigableWeeks, offPlanEntries, onSlotDay, reviewExercise, sessionName, targetFor, variantForWeek, weekNumber, weekRange, workingSets } from '../engine.ts';
+import { LETTERS, plannedVariant, rotatingSlots } from '../rotation.ts';
 import type { Slot } from '../types.ts';
+
+const CALENDAR_WEEKS = 8;
 
 const restSeconds = (slot: Slot, exerciseId: string) => (slot.superset ? 90 : getEx(exerciseId).type === 'compound' ? 150 : 75);
 
 export default function Program() {
-  const { settings, sessions, rotation } = useData();
+  const { settings, sessions } = useData();
   const cur = weekNumber(new Date(), settings.blockStart);
   const first = Math.max(cur, 1);
   const logged = finished(sessions).filter((s) => s.weekNumber <= cur);
@@ -22,14 +24,21 @@ export default function Program() {
   const inWeek = logged.filter((s) => s.weekNumber === week);
   const weekLabel = (w: number) => (w >= 1 ? `Week ${w}` : 'Pre-block');
 
-  const lock = (slot: Slot, variant: 'A' | 'B' | 'C') => db.rotation.put({ id: `${week}:${slot.id}`, weekNumber: week, slotId: slot.id, variant, exerciseId: slot.variants![variant] });
-  const unlock = (slotId: string) => db.rotation.delete(`${week}:${slotId}`);
+  const onPlan = (w: number) => weekRange(w, settings.blockStart).start >= PLAN_FROM;
 
   /* what was actually logged, by week */
   const histWeeks = [...new Set(logged.map((s) => s.weekNumber))].sort((a, b) => b - a);
   const doneVariant = (w: number, slot: Slot) => {
     const ids = new Set(logged.filter((s) => s.weekNumber === w && onSlotDay(s, slot)).flatMap((s) => s.exercises.filter((e) => workingSets(e.sets).length).map((e) => e.exerciseId)));
     return LETTERS.filter((l) => ids.has(slot.variants![l]));
+  };
+  /** A slot's exercises in the shown week: what was logged, else the plan. Days trained on the old rotation show only what was logged. */
+  const exercisesFor = (slot: Slot) => {
+    if (slot.exerciseId) return [slot.exerciseId];
+    const did = week <= cur ? doneVariant(week, slot) : [];
+    if (did.length) return did.map((l) => slot.variants![l]);
+    const oldDay = inWeek.some((s) => dayOfSession(s) === slot.dayId && new Date(s.startedAt) < PLAN_FROM);
+    return oldDay || (past && !onPlan(week)) ? [] : [plannedVariant(slot, week, settings).exerciseId];
   };
 
   return (
@@ -39,7 +48,7 @@ export default function Program() {
           <button className="btn" aria-label="Previous week" disabled={idx <= 0} onClick={() => setWeek(weeks[idx - 1])}>&lt;</button>
           <div className="center">
             <b>{weekLabel(week)}{week === cur ? ' · this week' : ''}</b>
-            <div className="muted small">{fmtDay(start)} – {fmtDay(end)} · variant {variantForWeek(week)}</div>
+            <div className="muted small">{fmtDay(start)} – {fmtDay(end)} · week {variantForWeek(week)}</div>
           </div>
           <button className="btn" aria-label="Next week" disabled={idx >= weeks.length - 1} onClick={() => setWeek(weeks[idx + 1])}>&gt;</button>
         </div>
@@ -49,24 +58,21 @@ export default function Program() {
       {DAYS.map((d) => {
         const slots = SLOTS.filter((s) => s.dayId === d.id);
         const done = inWeek.find((s) => dayOfSession(s) === d.id);
-        const rotating = slots.filter((s) => s.kind === 'rotating');
-        const locked = rotating.filter((s) => plannedVariant(s, week, settings, rotation).locked).length;
+        const sets = slots.reduce((a, s) => a + doseFor(s, s.exerciseId ?? plannedVariant(s, week, settings).exerciseId).sets, 0);
         return (
           <details key={`${week}:${d.id}`} className="card" open={past ? !!done : !done && !d.optional}>
             <summary className="daysum">
               <b>{d.name}</b>
               <span>
-                {DAY_INFO[d.id].when} · {DAY_INFO[d.id].mins} min · {slots.reduce((a, s) => a + s.sets, 0)} sets
-                <div className="muted">{done ? `Done ${fmtDay(new Date(done.startedAt))}` : !past && `${locked}/${rotating.length} locked`}</div>
+                {DAY_INFO[d.id].when} · {DAY_INFO[d.id].mins} min · {sets} sets
+                {done && <div className="muted">Done {fmtDay(new Date(done.startedAt))}</div>}
               </span>
             </summary>
-            {slots.map((s) => (
-              <div key={s.id} className={`slot ${s.superset ? 'ss' : ''}`}>
-                {s.kind === 'fixed'
-                  ? <ExerciseRow slot={s} exerciseId={s.exerciseId!} week={week} />
-                  : <RotatingSlot slot={s} week={week} past={past} lock={lock} unlock={unlock} done={doneVariant(week, s)} />}
+            {slots.flatMap((s) => exercisesFor(s).map((id) => (
+              <div key={`${s.id}:${id}`} className={`slot ${s.superset ? 'ss' : ''}`}>
+                <ExerciseRow slot={s} exerciseId={id} week={week} />
               </div>
-            ))}
+            )))}
             {done && offPlanEntries(done).length > 0 && (
               <div className="slot">
                 <span className="muted small">Also logged, not in this day's plan</span>
@@ -77,18 +83,22 @@ export default function Program() {
         );
       })}
 
-      <details className="card">
+      <details className="card" open>
         <summary><b>Rotation calendar</b></summary>
-        <p className="muted small">A &gt; B &gt; C, repeating. [/] marks an exercise you locked.</p>
-        {Array.from({ length: 6 }, (_, i) => first + i).map((w) => {
+        <p className="muted small">Week A and week B alternate.{!settings.equip.found.includes('nordic anchor') && ' Nordic curls join week B once you tick the anchor in Settings.'}</p>
+        {Array.from({ length: CALENDAR_WEEKS }, (_, i) => first + i).map((w) => {
           const r = weekRange(w, settings.blockStart);
           return (
             <details key={w} className="cal" open={w === first}>
               <summary>{weekLabel(w)} · {fmtDay(r.start)} – {fmtDay(r.end)} <span className="chip tiny">{variantForWeek(w)}</span></summary>
-              {rotatingSlots(true).map((s) => {
-                const p = plannedVariant(s, w, settings, rotation);
-                return <div key={s.id} className="between small prow"><span className="muted">{s.label}</span><span className="right">{p.locked && '[/] '}{getEx(p.exerciseId).name}</span></div>;
-              })}
+              {DAYS.map((d) => (
+                <div key={d.id} className="calday">
+                  <div className="small">{d.name}</div>
+                  {rotatingSlots().filter((s) => s.dayId === d.id).map((s) => (
+                    <div key={s.id} className="between small prow"><span className="muted">{s.label}</span><span className="right">{getEx(plannedVariant(s, w, settings).exerciseId).name}</span></div>
+                  ))}
+                </div>
+              ))}
             </details>
           );
         })}
@@ -97,101 +107,57 @@ export default function Program() {
       <details className="card">
         <summary><b>Rotation history</b></summary>
         {histWeeks.length === 0 && <p className="muted small">Import a Hevy export to see what you actually did each week.</p>}
-        {histWeeks.map((w, i) => (
-          <details key={w} className="cal" open={i === 0}>
-            <summary>{weekLabel(w)} · {fmtDay(weekRange(w, settings.blockStart).start)}</summary>
-            {rotatingSlots(true).map((s) => {
-              const done = doneVariant(w, s);
-              const plan = plannedVariant(s, w, settings, rotation).variant;
-              return (
-                <div key={s.id} className="between small prow">
-                  <span className="muted">{s.label}</span>
-                  <span className="right">
-                    {done.length ? done.map((l) => getEx(s.variants![l]).name).join(', ') : '—'}
-                    {done.length > 0 && !done.includes(plan) && <span className="chip warn tiny">plan {plan}</span>}
-                  </span>
-                </div>
-              );
-            })}
-          </details>
-        ))}
+        {histWeeks.map((w, i) => {
+          const other = [...new Set(logged.filter((s) => s.weekNumber === w).flatMap((s) => offPlanEntries(s).map((e) => getEx(e.exerciseId).name)))];
+          return (
+            <details key={w} className="cal" open={i === 0}>
+              <summary>{weekLabel(w)} · {fmtDay(weekRange(w, settings.blockStart).start)}</summary>
+              {rotatingSlots().map((s) => {
+                const done = doneVariant(w, s);
+                const plan = plannedVariant(s, w, settings).variant;
+                return (
+                  <div key={s.id} className="between small prow">
+                    <span className="muted">{s.label}</span>
+                    <span className="right">
+                      {done.length ? done.map((l) => getEx(s.variants![l]).name).join(', ') : '—'}
+                      {onPlan(w) && done.length > 0 && !done.includes(plan) && <span className="chip warn tiny">plan {plan}</span>}
+                    </span>
+                  </div>
+                );
+              })}
+              {other.length > 0 && <div className="between small prow"><span className="muted">Other</span><span className="right">{other.join(', ')}</span></div>}
+            </details>
+          );
+        })}
       </details>
     </>
   );
 }
 
-function RotatingSlot({ slot, week, past, lock, unlock, done }: {
-  slot: Slot; week: number; past: boolean; done: ('A' | 'B' | 'C')[];
-  lock: (slot: Slot, v: 'A' | 'B' | 'C') => void; unlock: (slotId: string) => void;
-}) {
-  const { settings, rotation } = useData();
-  const auto = autoVariant(slot, week, settings).variant;
-  const p = plannedVariant(slot, week, settings, rotation);
-  const [letter, setLetter] = useState(auto);
-  const [open, setOpen] = useState(false);
-
-  if (past) {
-    const shown = done.length ? done : [p.variant];
-    return <>{shown.map((l) => <ExerciseRow key={l} slot={slot} exerciseId={slot.variants![l]} week={week} letter={l} />)}</>;
-  }
-
-  // the carousel skips options whose equipment is marked unavailable
-  const usable = LETTERS.filter((l) => {
-    const eq = getEx(slot.variants![l]).equipment;
-    return !eq || !settings.equip.unavailable.includes(eq);
-  });
-  const options = usable.length ? usable : LETTERS;
-  const step = (by: 1 | -1) => setLetter(options[(options.indexOf(letter) + by + options.length) % options.length]);
-  const shown = p.locked ? p.variant : letter;
-  const exerciseId = p.locked ? p.exerciseId : slot.variants![letter];
-
-  return (
-    <>
-      <div className={`carousel ${p.locked ? 'locked' : ''}`}>
-        {!p.locked && <button className="navbtn" aria-label={`Previous ${slot.label} option`} onClick={() => step(-1)}>[&lt;]</button>}
-        <div className="carname">
-          <ExerciseName exerciseId={exerciseId} open={open} toggle={() => setOpen(!open)} set={p.locked} bare={!p.locked} />
-          {!p.locked && (
-            <div className="dots" aria-hidden="true">
-              {options.map((l) => <span key={l} className={`dot ${l === letter ? 'on' : ''} ${l === auto ? 'plan' : ''}`}>{l}</span>)}
-            </div>
-          )}
-        </div>
-        {!p.locked && <button className="navbtn" aria-label={`Next ${slot.label} option`} onClick={() => step(1)}>[&gt;]</button>}
-        {p.locked
-          ? <button className="navbtn lockbtn on" aria-label={`Unlock ${getEx(exerciseId).name}`} onClick={() => { setLetter(p.variant); unlock(slot.id); }}>[Unlock]</button>
-          : <button className="navbtn lockbtn" aria-label={`Lock ${getEx(exerciseId).name} for this week`} onClick={() => lock(slot, letter)}>[Lock]</button>}
-      </div>
-      {open && <ExerciseInfo slot={slot} exerciseId={exerciseId} week={week} letter={shown} planned={shown === auto} locked={p.locked} />}
-    </>
-  );
-}
-
-/** `set` marks an exercise that is decided: fixed, or locked for the week. `bare` is the name alone, for the carousel. */
-function ExerciseName({ exerciseId, open, toggle, dim, set, bare }: { exerciseId: string; open: boolean; toggle: () => void; dim?: boolean; set?: boolean; bare?: boolean }) {
+function ExerciseName({ exerciseId, open, toggle, dim }: { exerciseId: string; open: boolean; toggle: () => void; dim?: boolean }) {
   return (
     <button className={`exname ${dim ? 'muted' : ''}`} aria-expanded={open} onClick={toggle}>
-      {set && <span className="mark" aria-hidden="true">[/]</span>}
-      <span className={bare ? '' : 'nm'}>{getEx(exerciseId).name}</span>
-      {!bare && <span className="fold" aria-hidden="true">{open ? '[-]' : '[+]'}</span>}
+      <span className="mark" aria-hidden="true">[/]</span>
+      <span className="nm">{getEx(exerciseId).name}</span>
+      <span className="fold" aria-hidden="true">{open ? '[-]' : '[+]'}</span>
     </button>
   );
 }
 
-function ExerciseRow({ slot, exerciseId, week, letter }: { slot: Slot; exerciseId: string; week: number; letter?: string }) {
+function ExerciseRow({ slot, exerciseId, week }: { slot: Slot; exerciseId: string; week: number }) {
   const { sessions, settings } = useData();
   const [open, setOpen] = useState(false);
   const notLogged = week < weekNumber(new Date(), settings.blockStart)
     && !entriesFor(exerciseId, sessions.filter((s) => s.weekNumber === week && onSlotDay(s, slot))).length;
   return (
     <>
-      <ExerciseName exerciseId={exerciseId} open={open} toggle={() => setOpen(!open)} dim={notLogged} set />
-      {open && <ExerciseInfo slot={slot} exerciseId={exerciseId} week={week} letter={letter} />}
+      <ExerciseName exerciseId={exerciseId} open={open} toggle={() => setOpen(!open)} dim={notLogged} />
+      {open && <ExerciseInfo slot={doseFor(slot, exerciseId)} exerciseId={exerciseId} week={week} />}
     </>
   );
 }
 
-function ExerciseInfo({ slot, exerciseId, week, letter, planned, locked }: { slot: Slot; exerciseId: string; week: number; letter?: string; planned?: boolean; locked?: boolean }) {
+function ExerciseInfo({ slot, exerciseId, week }: { slot: Slot; exerciseId: string; week: number }) {
   const { sessions, settings, notes } = useData();
   const ex = getEx(exerciseId);
   const past = week < weekNumber(new Date(), settings.blockStart);
@@ -210,8 +176,7 @@ function ExerciseInfo({ slot, exerciseId, week, letter, planned, locked }: { slo
   return (
     <div className="einfo">
       <div className="muted small">
-        {slot.label}{slot.superset && ` · superset ${slot.superset}`} · {slot.kind === 'fixed' ? 'Fixed' : 'Rotates'}
-        {letter && ` · variant ${letter}`}{planned && ' · planned'}{locked && ' · locked'}
+        {slot.label}{slot.superset && ` · superset ${slot.superset}`} · {slot.kind === 'fixed' ? 'Fixed' : `Rotates, week ${variantForWeek(week)}`}
       </div>
       <div className="muted small">
         {slot.sets} sets × {slot.repMin}–{slot.repMax} · RPE {slot.rpeTarget[0]}–{slot.rpeTarget[1]} · rest {mmss(restSeconds(slot, exerciseId))}{slot.superset && ' after both'}

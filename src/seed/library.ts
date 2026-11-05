@@ -2,7 +2,7 @@ import type { Exercise, ExerciseType, LoadType, Muscle } from '../types.ts';
 
 const FLY_CUE = 'Elbows soft and below shoulder height, shoulder blades pinned back, stop when the stretch is in the chest, not the front of the shoulder. If it still bothers you, swap this week to 3 sets of machine chest press.';
 
-type Opt = { perSide?: boolean; equipment?: string; mistakes?: string[] };
+type Opt = { perSide?: boolean; equipment?: string; needs?: string; mistakes?: string[] };
 function x(
   id: string, name: string, type: ExerciseType, loadType: LoadType,
   primary: Muscle[], secondary: Muscle[], hevyNames: string[],
@@ -26,8 +26,7 @@ export const LIBRARY: Exercise[] = [
   x('assisted-pull-up', 'Assisted Pull-up', C, 'machine', ['lats_upper_back'], ['biceps'], ['Pull Up (Assisted)'], 'Logged weight is the assistance: less assistance = harder.', ['Full hang at the bottom', 'Chest toward the bar', 'Reduce the assistance over time']),
 
   // Rotating isolations
-  x('db-lateral-raise', 'Lateral Raise (Dumbbell)', I, 'dumbbell', ['side_delts'], [], ['Lateral Raise (Dumbbell)'], 'Standing dumbbell lateral raise.', ['Slight forward lean', 'Lead with the elbows', 'Raise to shoulder height', 'No swinging']),
-  x('seated-db-lateral-raise', 'Seated Lateral Raise (Dumbbell)', I, 'dumbbell', ['side_delts'], [], ['Seated Lateral Raise (Dumbbell)'], "Seated at the end of a bench so the legs can't help. Expect fewer reps than standing."),
+  x('db-lateral-raise', 'Lateral Raise (Dumbbell)', I, 'dumbbell', ['side_delts'], [], ['Lateral Raise (Dumbbell)', 'Seated Lateral Raise (Dumbbell)'], 'Seated or standing, whichever you prefer. Seated, the legs can\'t help, so expect fewer reps.', ['Slight forward lean', 'Lead with the elbows', 'Raise to shoulder height', 'No swinging']),
   x('lean-away-db-lateral-raise', 'Lean-away Lateral Raise', I, 'dumbbell', ['side_delts'], [], [], 'Hold a post, lean out about 20°, one arm at a time. The bottom of the lift gets harder.', [], { perSide: true }),
   x('single-arm-cable-lateral', 'Single-arm Cable Lateral Raise', I, 'cable', ['side_delts'], [], ['Lateral Raise (Cable)', 'Single Arm Lateral Raise (Cable)'], 'Low pulley with the cable behind the body; constant tension. A cable feels much heavier than a DB of the same number, so start at the lightest step.', [], { perSide: true }),
   x('cable-y-raise', 'Cable Y-Raise', I, 'cable', ['side_delts'], ['rear_delts'], [], 'Two low pulleys crossed; raise up and out into a Y, thumbs up.'),
@@ -49,7 +48,7 @@ export const LIBRARY: Exercise[] = [
   x('ez-bar-curl', 'EZ Bar Biceps Curl', I, 'barbell', ['biceps'], [], ['EZ Bar Biceps Curl'], 'Grip on the angled parts, easier on the wrists; the heaviest curl option.'),
   x('hammer-curl', 'Hammer Curl (Dumbbell)', I, 'dumbbell', ['biceps', 'forearms'], [], ['Hammer Curl (Dumbbell)'], 'Palms facing each other; works the brachialis and forearm.'),
   x('preacher-curl', 'Preacher Curl', I, 'barbell', ['biceps'], [], ['Preacher Curl (Barbell)', 'Preacher Curl (Machine)'], "Arm on the pad; don't lock out hard at the bottom; strict."),
-  x('seated-cable-fly', 'Seated Cable Fly', I, 'cable', ['chest'], [], ['Seated Chest Flys (Cable)', 'Cable Fly Crossovers'], 'Bench between the cables, pulleys at chest height; elbows soft and below the shoulders; hug the cables in.', [FLY_CUE]),
+  x('seated-cable-fly', 'Cable Fly', I, 'cable', ['chest'], [], ['Cable Fly Crossovers', 'Seated Chest Flys (Cable)'], 'Seated or standing between the cables, pulleys at chest height; elbows soft and below the shoulders; hug the cables in.', [FLY_CUE]),
   x('low-to-high-cable-fly', 'Low-to-High Cable Fly', I, 'cable', ['chest'], ['front_delts'], ['Low Cable Fly Crossovers'], 'Pulleys low; sweep up to chin height. Upper chest; usually the friendliest on the shoulders.', [FLY_CUE]),
   x('flat-db-fly', 'Flat Dumbbell Fly', I, 'dumbbell', ['chest'], [], ['Chest Fly (Dumbbell)'], 'Soft elbows; lower until the stretch is in the chest, not the shoulder; bring the DBs up.', [FLY_CUE]),
   x('seated-leg-curl', 'Seated Leg Curl (Machine)', I, 'machine', ['hamstrings'], [], ['Seated Leg Curl (Machine)'], 'Lean the torso slightly forward for more stretch. Grew the hamstrings more than lying curls in one study (Maeo et al., 2021).'),
@@ -62,8 +61,8 @@ export const LIBRARY: Exercise[] = [
   x('hanging-knee-raise', 'Hanging Knee Raise', I, 'bodyweight', ['core'], [], ['Hanging Knee Raise'], 'No swinging; curl the pelvis up at the top; progress to straight legs.'),
   x('pallof-press', 'Pallof Press', I, 'cable', ['core'], [], ['Pallof Press'], 'Side-on to a chest-height cable; press straight out and resist the twist; reps are per side.', [], { perSide: true }),
 
-  // Optional extra
-  x('nordic-curl', 'Nordic Hamstring Curl', I, 'bodyweight', ['hamstrings'], [], ['Nordic Hamstring Curl'], '2 × 3–6 slow lowerings. Strongly protective against hamstring strains (van Dyk et al., 2019).'),
+  // Hamstring rotation, once the kit is found
+  x('nordic-curl', 'Nordic Hamstring Curl', I, 'bodyweight', ['hamstrings'], [], ['Nordic Hamstring Curl'], 'Feet anchored under a pad or held by a partner; lower yourself as slowly as you can. Strongly protective against hamstring strains (van Dyk et al., 2019).', [], { needs: 'nordic anchor' }),
 ];
 
 export const LIB: Record<string, Exercise> = Object.fromEntries(LIBRARY.map((e) => [e.id, e]));
