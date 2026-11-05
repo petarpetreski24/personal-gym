@@ -83,13 +83,13 @@ export default function Program() {
         );
       })}
 
-      <details className="card" open>
+      <details className="card">
         <summary><b>Rotation calendar</b></summary>
         <p className="muted small">Week A and week B alternate.{!settings.equip.found.includes('nordic anchor') && ' Nordic curls join week B once you tick the anchor in Settings.'}</p>
         {Array.from({ length: CALENDAR_WEEKS }, (_, i) => first + i).map((w) => {
           const r = weekRange(w, settings.blockStart);
           return (
-            <details key={w} className="cal" open={w === first}>
+            <details key={w} className="cal">
               <summary>{weekLabel(w)} · {fmtDay(r.start)} – {fmtDay(r.end)} <span className="chip tiny">{variantForWeek(w)}</span></summary>
               {DAYS.map((d) => (
                 <div key={d.id} className="calday">
@@ -107,10 +107,10 @@ export default function Program() {
       <details className="card">
         <summary><b>Rotation history</b></summary>
         {histWeeks.length === 0 && <p className="muted small">Import a Hevy export to see what you actually did each week.</p>}
-        {histWeeks.map((w, i) => {
+        {histWeeks.map((w) => {
           const other = [...new Set(logged.filter((s) => s.weekNumber === w).flatMap((s) => offPlanEntries(s).map((e) => getEx(e.exerciseId).name)))];
           return (
-            <details key={w} className="cal" open={i === 0}>
+            <details key={w} className="cal">
               <summary>{weekLabel(w)} · {fmtDay(weekRange(w, settings.blockStart).start)}</summary>
               {rotatingSlots().map((s) => {
                 const done = doneVariant(w, s);
