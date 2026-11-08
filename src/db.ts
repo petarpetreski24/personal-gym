@@ -4,8 +4,9 @@ import { LIB } from './seed/library.ts';
 import { DEFAULT_BLOCK_START, DEFAULT_EQUIP } from './seed/program.ts';
 import { SEED_LEGACY, SEED_NOTES, SEED_REMARKS, SEED_SESSIONS } from './seed/week1.ts';
 import { normalizeSessions, planImport, type HevyResult, type ImportPlan } from './csv.ts';
-import { replacedBy } from './hevyText.ts';
-import { mondayOf, parseDate } from './engine.ts';
+import { parseHevyText, pastedResult, replacedBy } from './hevyText.ts';
+import { REVIEWS } from './seed/weeks/reviews.ts';
+import { mondayOf, parseDate, weekNumber } from './engine.ts';
 
 export interface LegacyRow { id: string; name: string; type: 'compound' | 'isolation' }
 
@@ -101,6 +102,32 @@ async function addWeek1() {
   });
 }
 
+const WEEK_TEXTS = import.meta.glob<string>('./seed/weeks/*.txt', { eager: true, query: '?raw', import: 'default' });
+
+/**
+ * Weeks of Hevy text shipped with the app, and their reviews. Each session and review is added once,
+ * so deleting or rewriting one here sticks. Days an import already covers are left alone.
+ */
+async function addBundled() {
+  const done = new Set(((await db.kv.get('bundled'))?.value as string[] | undefined) ?? []);
+  const { blockStart } = await getSettings();
+  const res = pastedResult(Object.values(WEEK_TEXTS).flatMap((t) => parseHevyText(t)), blockStart);
+  const fresh = res.sessions.filter((s) => !done.has(s.id));
+  const reviews = REVIEWS.filter((r) => !done.has(`review:${r.from}`));
+  if (!fresh.length && !reviews.length) return;
+  await db.transaction('rw', [db.sessions, db.legacy, db.weekRemarks, db.kv], async () => {
+    const day = (s: Session) => new Date(s.startedAt).toDateString();
+    const have = new Set((await db.sessions.toArray()).map(day));
+    await db.legacy.bulkPut(res.legacy);
+    await db.sessions.bulkPut(fresh.filter((s) => !have.has(day(s))));
+    for (const r of reviews) {
+      const week = weekNumber(parseDate(r.from), blockStart);
+      if (!(await db.weekRemarks.get(week))) await db.weekRemarks.put({ weekNumber: week, text: r.text });
+    }
+    await db.kv.put({ key: 'bundled', value: [...done, ...fresh.map((s) => s.id), ...reviews.map((r) => `review:${r.from}`)] });
+  });
+}
+
 export async function seedIfEmpty() {
   if (!(await db.kv.get('seeded'))) {
     await db.transaction('rw', db.tables, async () => {
@@ -111,6 +138,7 @@ export async function seedIfEmpty() {
     for (const h of Object.values(hevySeed)) await addImported(h);
   }
   await addWeek1();
+  await addBundled();
   await normalizeData();
   setLegacy(await db.legacy.toArray());
 }

@@ -30,7 +30,7 @@ export default function Exercises() {
           {es.map((e) => (
             <button key={e.id} className="listbtn" onClick={() => setOpen(e.id)}>
               <span>{e.name}</span>
-              <span>{!e.legacy && <span className="chip tiny">{!PLANNED_IDS.has(e.id) ? 'Past' : SLOTS.some((s) => s.exerciseId === e.id) ? 'Fixed' : 'Rotates'}</span>}<span className="chip tiny">{e.type === 'compound' ? 'C' : 'I'}</span></span>
+              <span>{!e.legacy && <span className="chip tiny">{!PLANNED_IDS.has(e.id) ? 'Off plan' : SLOTS.some((s) => s.exerciseId === e.id) ? 'Fixed' : 'Rotates'}</span>}<span className="chip tiny">{e.type === 'compound' ? 'C' : 'I'}</span></span>
             </button>
           ))}
         </div>

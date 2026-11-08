@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseHevyText, pastedResult, replacedBy } from './hevyText.ts';
 import { dayOfSession } from './engine.ts';
@@ -170,6 +171,24 @@ describe('Hevy text', () => {
     expect(w.warnings).toContain('Not read: 20min');
     expect(w.warnings.some((x) => x.includes('Hevy says 100'))).toBe(true);
     expect(parseHevyText('hello\nworld', NOW)).toEqual([]);
+  });
+});
+
+describe('week 2 text', () => {
+  const week2 = parseHevyText(fs.readFileSync(new URL('./seed/weeks/2026-11-02.txt', import.meta.url), 'utf8'), NOW);
+  const ex = (w: number, id: string) => week2[w].exercises.find((e) => e.exerciseId === id)!;
+  it('reads all three workouts and matches Hevy\'s volume', () => {
+    expect(week2.map((w) => w.start)).toEqual(['2026-11-02T17:57', '2026-11-04T18:21', '2026-11-07T17:55']);
+    expect(week2.flatMap((w) => w.warnings)).toEqual([]);
+  });
+  it('keeps a note under an exercise as its note, not its name', () => {
+    expect(ex(0, 'single-arm-oh-db-ext').note).toBe('On my left arm, the joint hurts');
+    expect(ex(0, 'machine-lateral-raise').sets).toHaveLength(3);
+    expect(week2.flatMap((w) => w.legacy)).toEqual([]);
+  });
+  it('counts a lighter extra set on a compound as a warm-up, but not on an isolation', () => {
+    expect(week2.map((w) => w.warmups)).toEqual([['Lat Pulldown (Cable) 25×12'], ['Leg Press Horizontal (Machine) 65×12'], ['Incline Bench Press (Dumbbell) 15×10']]);
+    expect(ex(1, 'leg-press-calf-press').sets.map((s) => s.type)).toEqual(['working', 'working']);
   });
 });
 

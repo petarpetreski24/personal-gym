@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayOfSession, doseFor, navigableWeeks, pickVariant, sessionName, stepLoad, targetFor, variantForWeek, weekNumber } from './engine.ts';
+import { dayOfSession, doseFor, navigableWeeks, reviewExercise, pickVariant, sessionName, stepLoad, targetFor, variantForWeek, weekNumber } from './engine.ts';
 import { LIB } from './seed/library.ts';
 import { DEFAULT_EQUIP, SLOT_BY_ID } from './seed/program.ts';
 import { SEED_SESSIONS } from './seed/week1.ts';
@@ -140,5 +140,14 @@ describe('progression rules', () => {
   });
   it('dumbbell steps follow the available list', () => {
     expect(stepLoad(10, LIB['db-curl'], eq)).toBe(12);
+  });
+});
+
+describe('capped load review', () => {
+  it('holding the cap is on track, not a regression from an earlier heavier pyramid', () => {
+    const s = (w: number, r: number) => ({ index: 0, type: 'working' as const, weightKg: w, reps: r });
+    const slot = SLOT_BY_ID['L2'];
+    expect(reviewExercise([s(85, 10), s(85, 10), s(85, 10)], [s(75, 10), s(85, 12), s(95, 8)], LIB['leg-press-horizontal'], slot).status).toBe('On track');
+    expect(reviewExercise([s(95, 8)], undefined, LIB['leg-press-horizontal'], slot).status).toBe('Over cap');
   });
 });

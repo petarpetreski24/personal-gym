@@ -271,6 +271,9 @@ export function reviewExercise(curAll: SetLog[], prevAll: SetLog[] | undefined, 
     return { status: 'Too light', tone: 'warn', text: 'Add load' };
   if (distinct > 1)
     return { status: 'Adjust: pyramid', tone: 'warn', text: 'More than one working weight – use straight sets' };
+  // a capped load is held on purpose, so a lower e1RM than an earlier heavier session isn't a regression
+  if (slot.lockedLoadKg != null && cur.length)
+    return { status: 'On track', tone: 'ok', text: `Holding the ${slot.lockedLoadKg} kg cap` };
   if (prev && prev.length) {
     const be = bestE1rm(cur), pe = bestE1rm(prev);
     const prevHeavy = inv ? Math.min(...prev.map(wt)) : Math.max(...prev.map(wt));

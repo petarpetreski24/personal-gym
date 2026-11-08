@@ -2,6 +2,8 @@ import type { Exercise, Session, SessionExercise, SetLog } from './types.ts';
 import { exerciseResolver, parseHevyDate, type HevyResult } from './csv.ts';
 import { dayOfSession, weekNumber } from './engine.ts';
 import { fmtNum } from './util.ts';
+import { LIBRARY } from './seed/library.ts';
+import { SLOTS } from './seed/program.ts';
 
 /** A workout copied as text from Hevy. start is local "YYYY-MM-DDTHH:mm", empty if the text didn't include a readable date. */
 export interface PastedWorkout {
@@ -45,22 +47,30 @@ function readSet(line: string): Pick<SetLog, 'weightKg' | 'reps'> | null {
   return bare ? { weightKg: null, reps: Number(bare[1]) } : null;
 }
 
-// the text doesn't mark warm-ups, so opening sets well below the exercise's heaviest count as warm-ups
+/**
+ * The text doesn't mark warm-ups. On a compound, an opening set lighter than the heaviest counts as one
+ * when it's well below it, or when there are more sets than the plan has (65 + 3 × 85 on a 3-set slot).
+ */
 const WARMUP_BELOW = 0.7;
-function markWarmups(sets: SetLog[]) {
+const plannedSets = (id: string) => Math.max(0, ...SLOTS.filter((s) => s.exerciseId === id || Object.values(s.variants ?? {}).includes(id)).map((s) => s.sets)) || 3;
+function markWarmups(sets: SetLog[], planned: number) {
   const top = Math.max(0, ...sets.map((s) => s.weightKg ?? 0));
-  for (const s of sets) {
-    if (!top || s.weightKg == null || s.weightKg > top * WARMUP_BELOW) break;
-    s.type = 'warmup';
+  const extra = sets.length - planned;
+  for (let i = 0; i < sets.length; i++) {
+    const w = sets[i].weightKg;
+    if (!top || w == null || w >= top || (w > top * WARMUP_BELOW && i >= extra)) break;
+    sets[i].type = 'warmup';
   }
 }
 
 const isWord = (line: string | undefined, word: string) => line?.toLowerCase() === word;
+// a number-led line: a set in a format the reader doesn't know (time, distance, lbs), or a stat
+const numeric = (line: string) => /^[+-]?\d/.test(line);
 
 /**
  * Reads Hevy's shared workout text. Each workout runs: [user, date,] title, "Duration", time,
- * "Volume", total, "Records", counts, then for each exercise: name, "SETS", a column heading, sets.
- * Badges such as "Best Volume" sit between sets.
+ * "Volume", total, "Records", counts, then for each exercise: name, [note,] "SETS", a column heading,
+ * sets. Badges such as "Best Volume" sit between sets.
  */
 export function parseHevyText(text: string, now = new Date(), known?: Exercise[]): PastedWorkout[] {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -78,22 +88,31 @@ export function parseHevyText(text: string, now = new Date(), known?: Exercise[]
     const warnings: string[] = [];
     const names = new Map<string, string>();
     let cur: SessionExercise | undefined;
+    let words: string[] = []; // text lines since the last set: the next exercise's name, then its note
     for (let i = at + 2; i < end; i++) {
-      if (isWord(lines[i + 1], 'sets')) {
-        const id = idFor(lines[i]);
-        names.set(id, lines[i]);
+      const line = lines[i];
+      const set = readSet(line);
+      if (isWord(line, 'sets')) {
+        const [name = '?', ...note] = words;
+        words = [];
+        const id = idFor(name);
+        names.set(id, name);
         cur = exercises.find((e) => e.exerciseId === id);
         if (!cur) { cur = { exerciseId: id, sets: [] }; exercises.push(cur); }
-        i += 2; // past "SETS" and the column heading
-      } else if (cur && !/^best\b/i.test(lines[i])) {
-        const set = readSet(lines[i]);
-        if (set) cur.sets.push({ index: cur.sets.length, type: 'working', ...set });
-        else warnings.push(`Not read: ${lines[i]}`);
-      }
+        if (note.length) cur.note = [cur.note, ...note].filter(Boolean).join(' ');
+        i += 1; // past the column heading
+      } else if (/^best\b/i.test(line)) continue;
+      else if (set && cur) cur.sets.push({ index: cur.sets.length, type: 'working', ...set });
+      else if (numeric(line) || /^(volume|records)$/i.test(line)) {
+        if (cur) warnings.push(`Not read: ${line}`);
+        words = [];
+      } else words.push(line);
     }
+    if (cur) warnings.push(...words.map((w) => `Not read: ${w}`));
     const warmups: string[] = [];
     for (const e of exercises) {
-      markWarmups(e.sets);
+      const type = (known ?? LIBRARY).find((k) => k.id === e.exerciseId)?.type ?? legacy.get(e.exerciseId)?.type;
+      if (type === 'compound') markWarmups(e.sets, plannedSets(e.exerciseId));
       for (const s of e.sets) if (s.type === 'warmup') warmups.push(`${names.get(e.exerciseId)} ${fmtNum(s.weightKg ?? 0)}×${s.reps}`);
     }
     const volumeAt = lines.slice(at, end).findIndex((l) => isWord(l, 'volume'));
