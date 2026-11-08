@@ -1,3 +1,10 @@
+/** Exercise notes shipped with the app. Each becomes the exercise's note once, if it has none. */
+export const NOTES: { key: string; exerciseId: string; text: string }[] = [{
+  key: 'left-elbow-2026-11',
+  exerciseId: 'overhead-cable-triceps-ext',
+  text: 'Left elbow hurt on 2 Nov (single-arm DB extension). Go light: about 15 kg, straight wrists, pain-free reps only. If it hurts during the set or the next day, do rope pushdowns that day instead.',
+}];
+
 /** Week reviews shipped with the app, keyed by the week's Monday. Each becomes that week's remark if it has none. */
 export const REVIEWS: { from: string; text: string }[] = [{
   from: '2026-11-02',

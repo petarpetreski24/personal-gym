@@ -5,7 +5,7 @@ import { DEFAULT_BLOCK_START, DEFAULT_EQUIP } from './seed/program.ts';
 import { SEED_LEGACY, SEED_NOTES, SEED_REMARKS, SEED_SESSIONS } from './seed/week1.ts';
 import { normalizeSessions, planImport, type HevyResult, type ImportPlan } from './csv.ts';
 import { parseHevyText, pastedResult, replacedBy } from './hevyText.ts';
-import { REVIEWS } from './seed/weeks/reviews.ts';
+import { NOTES, REVIEWS } from './seed/weeks/reviews.ts';
 import { mondayOf, parseDate, weekNumber } from './engine.ts';
 
 export interface LegacyRow { id: string; name: string; type: 'compound' | 'isolation' }
@@ -114,8 +114,9 @@ async function addBundled() {
   const res = pastedResult(Object.values(WEEK_TEXTS).flatMap((t) => parseHevyText(t)), blockStart);
   const fresh = res.sessions.filter((s) => !done.has(s.id));
   const reviews = REVIEWS.filter((r) => !done.has(`review:${r.from}`));
-  if (!fresh.length && !reviews.length) return;
-  await db.transaction('rw', [db.sessions, db.legacy, db.weekRemarks, db.kv], async () => {
+  const notes = NOTES.filter((n) => !done.has(`note:${n.key}`));
+  if (!fresh.length && !reviews.length && !notes.length) return;
+  await db.transaction('rw', [db.sessions, db.legacy, db.weekRemarks, db.exerciseNotes, db.kv], async () => {
     const day = (s: Session) => new Date(s.startedAt).toDateString();
     const have = new Set((await db.sessions.toArray()).map(day));
     await db.legacy.bulkPut(res.legacy);
@@ -124,7 +125,8 @@ async function addBundled() {
       const week = weekNumber(parseDate(r.from), blockStart);
       if (!(await db.weekRemarks.get(week))) await db.weekRemarks.put({ weekNumber: week, text: r.text });
     }
-    await db.kv.put({ key: 'bundled', value: [...done, ...fresh.map((s) => s.id), ...reviews.map((r) => `review:${r.from}`)] });
+    for (const n of notes) if (!(await db.exerciseNotes.get(n.exerciseId))) await db.exerciseNotes.put({ exerciseId: n.exerciseId, text: n.text });
+    await db.kv.put({ key: 'bundled', value: [...done, ...fresh.map((s) => s.id), ...reviews.map((r) => `review:${r.from}`), ...notes.map((n) => `note:${n.key}`)] });
   });
 }
 
